@@ -67,6 +67,14 @@ Sourceglass — Open-source image provenance inspector の MVP 設計
   - 記号は**自前 SVG 3つ**（`i-warn` / `i-info` / `i-none`）。カラー絵文字化を防ぐ
   - 実線 / 破線が4状態の唯一の構造的区別。ドロップゾーンも破線で語彙を揃える
   - `AGENTS.md` にビジュアル規約を追記
+- **デザインを「文書」ではなく「ファイル」で渡す形にした**（引き継ぎで崩れるのを防ぐため）
+  - `src/styles/tokens.css` / `src/styles/base.css` / `src/components/Icon.tsx` を**設計担当が作成**
+  - この3つは**編集禁止**。実装側はクラスを当てるだけで、色・余白の判断が発生しない
+  - `scripts/design-guard.mjs` + `design-lock.json` で規約違反を機械的に検出（動作確認済み）
+    - 保護ファイルはハッシュで固定。変更するとガードが落ちる
+    - 色リテラル直書き / `:root` 再定義 / Web フォント / `✓` / テキスト記号 /
+      4px超の角丸 / 確率表示 / 「安全」断定 を検出
+  - `package.json` に `design:guard` と `design:lock` スクリプトの追加が必要（Phase 1）
 
 ## Next Step
 

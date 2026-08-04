@@ -1,0 +1,393 @@
+/**
+ * Sourceglass — ベーススタイル
+ *
+ * ★ このファイルはデザイン仕様そのものです。
+ *   仕様: ai_tasks/20260804_sourceglass_mvp_design/design.md
+ *
+ * ★ 実装者（人間・AIを問わず）はこのファイルを編集しないでください。
+ *   コンポーネントからは、ここで定義されたクラスを「当てるだけ」にしてください。
+ *   新しいクラスが必要になった場合は、実装せずに相談してください。
+ *
+ * 設計の要点:
+ *   1. 強調は「地と figure の反転」であり、色相ではない（.result--emph）
+ *   2. 実線 / 破線が4状態の唯一の構造的な区別
+ *   3. 兄弟要素の間隔は flex/grid + gap で取る。個別 margin を使わない
+ */
+
+@import "./tokens.css";
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  color-scheme: light dark;
+}
+
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--fg);
+  font-family: var(--sans);
+  font-size: var(--t-body);
+  line-height: var(--lh-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ══ レイアウト ═══════════════════════════════════ */
+
+.app {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: var(--sp-7) var(--sp-5) 96px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+
+.stack--tight {
+  gap: var(--sp-1);
+}
+
+/* ══ タイポグラフィ ═══════════════════════════════ */
+
+.wordmark {
+  font-size: var(--t-mark);
+  font-weight: 640;
+  letter-spacing: -0.025em;
+}
+
+.tagline {
+  color: var(--muted);
+  font-size: var(--t-body);
+}
+
+/* 大文字マイクロラベル。等幅・英数字のみ */
+.eyebrow {
+  font-family: var(--mono);
+  font-size: var(--t-xs);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.note {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--t-note);
+  max-width: var(--measure);
+}
+
+/* 免責文言。結果の直下に常時表示し、折りたたまない */
+.disclaimer {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  max-width: var(--measure);
+}
+
+/* ファイル情報など。等幅・英数字のみ */
+.filemeta {
+  font-family: var(--mono);
+  font-size: var(--t-sm);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ══ ドロップゾーン ═══════════════════════════════
+   枠を破線にするのは「まだ何も入っていない」の記号。
+   結果画面の破線（＝記録が欠けている）と語彙を揃えている。 */
+
+.dropzone {
+  border: 1px dashed var(--rule-strong);
+  border-radius: var(--radius);
+  padding: var(--sp-7) var(--sp-5);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-3);
+  background: var(--bg);
+}
+
+.dropzone--active {
+  border-color: var(--fg);
+}
+
+.dropzone__primary {
+  font-size: var(--t-title);
+}
+
+.dropzone__or {
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.btn {
+  font: inherit;
+  font-size: var(--t-note);
+  color: var(--fg);
+  background: transparent;
+  border: 1px solid var(--fg);
+  border-radius: var(--radius-sm);
+  padding: 7px 18px;
+  cursor: pointer;
+}
+
+.btn:hover {
+  background: var(--fg);
+  color: var(--bg);
+}
+
+.privacy-line {
+  display: flex;
+  justify-content: center;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+  font-family: var(--mono);
+  font-size: var(--t-xs);
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+/* ══ サマリー（読み物パート） ═════════════════════ */
+
+.summary {
+  display: flex;
+  flex-direction: column;
+}
+
+.summary__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--sp-4);
+  padding: 9px 0;
+  border-bottom: 1px solid var(--rule);
+  align-items: baseline;
+}
+
+.summary__row:first-child {
+  border-top: 1px solid var(--rule);
+}
+
+.summary__key {
+  color: var(--muted);
+  font-size: var(--t-note);
+}
+
+.summary__val {
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 値が無い行は空白にせず必ず「—」を入れる。
+   空白は「調べていない」に見える。 */
+.summary__val--none {
+  color: var(--muted);
+}
+
+/* ══ 結果ブロック ═════════════════════════════════ */
+
+.result {
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+/* NO_PROVENANCE_INFORMATION 専用。
+   記録が「欠けている」状態を、枠を欠かすことで形として表す。
+   NO_AI_RELATED_PROVENANCE_FOUND との混同がこの製品の最大のリスクなので、
+   記号・文言に加えてここでも差をつける。 */
+.result--dashed {
+  border-style: dashed;
+}
+
+.result__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: var(--sp-4) 18px 0;
+}
+
+.result__title {
+  font-weight: 620;
+  font-size: var(--t-title);
+  line-height: var(--lh-title);
+  text-wrap: balance;
+}
+
+.result__body {
+  padding: var(--sp-2) 18px 18px 47px;
+}
+
+.result__note {
+  margin: 0;
+  font-size: var(--t-note);
+  color: var(--muted);
+}
+
+/* 「何も判断できません」のような、濁してはいけない一文 */
+.result__note em {
+  font-style: normal;
+  color: var(--fg);
+  font-weight: 600;
+}
+
+/* 何を検査したか。「見つからなかった」は検査範囲に依存するため必須 */
+.result__coverage {
+  margin: var(--sp-3) 0 0;
+  font-family: var(--mono);
+  font-size: var(--t-sm);
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+
+/**
+ * 唯一の強調 — AI_RELATED_PROVENANCE / basis=explicit のときだけ付ける。
+ *
+ * 強調を「地と figure の関係」として定義しているため、ライト・ダーク
+ * どちらでも自動的に成立する。色相は一切使っていない。
+ *
+ * ★ 見出し行のみを反転すること。ブロック全体の反転は禁止。
+ *   黒い塊は「エラー・危険」の語彙であり、AI 生成は危険ではない。
+ */
+.result--emph .result__head {
+  background: var(--fg);
+  color: var(--bg);
+  padding: 14px 18px;
+  margin: -1px -1px 0;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+
+/* ══ アイコン ═════════════════════════════════════
+   自前 SVG のみ。Unicode のテキスト記号は環境によってカラー絵文字として
+   描画され、モノクロ設計が破綻する。 */
+
+.icon {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  margin-top: 2px;
+}
+
+/* ══ 詳細（計測器パート） ═════════════════════════
+   折りたたみを開く操作が、そのまま「一般向け → 専門向け」の
+   切り替えになる。ここから下は等幅・罫線・高密度。 */
+
+.details {
+  border-top: 1px solid var(--rule);
+}
+
+.details > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 11px 2px;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.details > summary::before {
+  content: "+";
+  color: var(--muted);
+  font-size: var(--t-note);
+}
+
+.details[open] > summary::before {
+  content: "\2212";
+}
+
+/* 横長の表はページ本体ではなく、この容器の中でスクロールさせる */
+.table-wrap {
+  overflow-x: auto;
+  padding-bottom: var(--sp-3);
+}
+
+/* 計測器パートの表。ここに日本語（和訳ラベル）を入れないこと。
+   等幅フォントがフォールバックしてガタつく。 */
+.data {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: var(--t-sm);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.data th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-size: var(--t-micro);
+  padding: 6px 20px 6px 0;
+  border-bottom: 1px solid var(--rule-strong);
+}
+
+.data td {
+  padding: 5px 20px 5px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.data td:first-child {
+  color: var(--muted);
+}
+
+.data tr:last-child td {
+  border-bottom: none;
+}
+
+/* シグナルの根拠パス。長いので折り返しを許す */
+.evidence {
+  font-family: var(--mono);
+  font-size: var(--t-xs);
+  color: var(--muted);
+  word-break: break-all;
+  white-space: normal;
+}
+
+/* ══ リスト ═══════════════════════════════════════ */
+
+.plain {
+  margin: 0;
+  padding-left: 1.15em;
+  color: var(--muted);
+  font-size: var(--t-note);
+}
+
+.plain li {
+  margin: 3px 0;
+}

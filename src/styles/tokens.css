@@ -1,0 +1,87 @@
+/**
+ * Sourceglass — デザイントークン
+ *
+ * ★ このファイルはデザイン仕様そのものです。
+ *   仕様: ai_tasks/20260804_sourceglass_mvp_design/design.md
+ *   参照実装: https://claude.ai/code/artifact/afe097e6-a8b6-4093-8ef7-82626ca527fa
+ *
+ * ★ 実装者（人間・AIを問わず）はこのファイルを編集しないでください。
+ *   色・余白・フォントの変更が必要になった場合は、実装せずに相談してください。
+ *
+ * ★ 色リテラル（#xxx / rgb() / hsl()）を書いてよいのはこのファイルだけです。
+ *   他の場所では必ず var(--...) を経由してください。
+ *   scripts/design-guard.mjs がこれを機械的に検査します。
+ */
+
+:root {
+  /* ── 色 ──────────────────────────────────────────
+     中立色は純グレーではなく、ごくわずかに寒色へ寄せている。
+     レンズ・計測器の質感に寄せるための意図的な選択。 */
+  --page: #f4f5f7;
+  --bg: #fcfcfd;
+  --fg: #14161a;
+  --muted: #5c6370;
+  --rule: #e3e5ea;
+  --rule-strong: #c6cad2;
+  --shadow: 0 1px 2px rgb(20 22 26 / 5%), 0 8px 24px rgb(20 22 26 / 6%);
+
+  /* ── 書体 ────────────────────────────────────────
+     Web フォントは使わない。読み込んだ瞬間に外部リクエストが発生し、
+     CSP でも弾かれ、「画像は出ないが利用した事実は漏れる」状態になる。
+
+     --mono は英数字にのみ使うこと。日本語を等幅ブロックに入れない
+     （フォールバックしてほぼ必ずガタつく）。 */
+  --sans:
+    system-ui, -apple-system, "Segoe UI", "Hiragino Kaku Gothic ProN",
+    "Noto Sans JP", "Yu Gothic UI", Meiryo, sans-serif;
+  --mono:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "DejaVu Sans Mono", monospace;
+
+  /* ── タイプスケール ───────────────────────────── */
+  --t-micro: 0.625rem;   /* 大文字マイクロラベル */
+  --t-xs: 0.6875rem;
+  --t-sm: 0.75rem;       /* データ（等幅） */
+  --t-note: 0.875rem;    /* 注記・免責 */
+  --t-body: 0.9375rem;
+  --t-title: 1rem;       /* 結果の見出し */
+  --t-mark: 1.0625rem;   /* ワードマーク */
+
+  --lh-body: 1.75;
+  --lh-title: 1.5;
+
+  /* ── 余白 ────────────────────────────────────── */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+  --sp-7: 48px;
+
+  /* ── 形 ──────────────────────────────────────
+     角丸はほぼ使わない。計測器としての性格を保つため。 */
+  --radius: 3px;
+  --radius-sm: 2px;
+
+  /* 読み物パートの行長上限 */
+  --measure: 66ch;
+}
+
+/**
+ * ダークモードは OS 設定に自動追従する（トグル UI は持たない）。
+ *
+ * --fg を純白にしないこと。反転ブロック（地と図の入れ替え）が眩しくなり、
+ * 「強調」ではなく「攻撃」になる。
+ */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --page: #0d0f12;
+    --bg: #15181c;
+    --fg: #e4e7eb;
+    --muted: #969ca8;
+    --rule: #262a30;
+    --rule-strong: #3b414b;
+    --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 8px 24px rgb(0 0 0 / 35%);
+  }
+}
