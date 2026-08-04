@@ -11,7 +11,10 @@ export function InspectionReport({ report }: { report: ProvenanceReport }) {
   const showWhyEmpty =
     report.verdict === "NO_PROVENANCE_INFORMATION" &&
     results.every(
-      (result) => result.status !== "not-checked" && result.status !== "error",
+      (result) =>
+        (result.status !== "not-checked" ||
+          result.reason === "not-requested") &&
+        result.status !== "error",
     );
 
   return (

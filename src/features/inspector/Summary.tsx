@@ -6,6 +6,7 @@ import {
   type ProvenanceReport,
 } from "../provenance";
 import { t } from "../../i18n";
+import { isAiRelatedSignal } from "./isAiRelatedSignal";
 
 interface SummaryRow {
   label: string;
@@ -22,6 +23,7 @@ function rows(report: ProvenanceReport): SummaryRow[] {
   const exif = getExif(report);
   const xmp = getXmp(report);
   const empty = t("summary.empty");
+  const hasAiRelatedProvenance = report.signals.some(isAiRelatedSignal);
   const software =
     (exif.status === "present"
       ? firstValue(exif.data.fields["exif.Software"])
@@ -43,8 +45,8 @@ function rows(report: ProvenanceReport): SummaryRow[] {
     },
     {
       label: t("summary.aiRelated"),
-      value: report.signals.length > 0 ? t("summary.found") : empty,
-      empty: report.signals.length === 0,
+      value: hasAiRelatedProvenance ? t("summary.found") : empty,
+      empty: !hasAiRelatedProvenance,
     },
     {
       label: t("summary.software"),

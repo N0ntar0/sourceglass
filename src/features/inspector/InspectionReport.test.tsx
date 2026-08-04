@@ -141,6 +141,64 @@ describe("InspectionReport", () => {
     expect(markup).toContain("Checked:");
   });
 
+  it("does not count non-AI signals as AI-related provenance", () => {
+    const nonAi = report({
+      verdict: "NO_AI_RELATED_PROVENANCE_FOUND",
+      exif: presentExif,
+    });
+    nonAi.signals = [
+      {
+        id: "fixture.provenance",
+        source: "exif",
+        category: "provenance",
+        basis: "heuristic",
+        labelKey: "fixture.provenance",
+        evidence: { path: "fixture.path", value: "fixture value" },
+      },
+    ];
+
+    const markup = renderToStaticMarkup(<InspectionReport report={nonAi} />);
+    expect(markup).toContain(
+      '<div class="summary__key">AI-related provenance</div><div class="summary__val summary__val--none">—</div>',
+    );
+    expect(markup).toContain("No AI-related record was found");
+  });
+
+  it("uses the invalid-C2PA wording for downgraded AI signals", () => {
+    const invalidC2pa: SourceResult<C2paData> = {
+      status: "present",
+      data: {
+        ...presentC2pa.data,
+        validation: {
+          ...presentC2pa.data.validation,
+          integrity: "invalid",
+          rawState: "Invalid",
+        },
+      },
+    };
+    const markup = renderToStaticMarkup(
+      <InspectionReport
+        report={report({
+          verdict: "AI_RELATED_PROVENANCE",
+          basis: "heuristic",
+          c2pa: invalidC2pa,
+        })}
+      />,
+    );
+
+    expect(markup).toContain(
+      "A record indicating AI generation or AI editing was found",
+    );
+    expect(markup).toContain(
+      "However, this C2PA record failed its integrity checks, so its contents cannot be relied upon.",
+    );
+    expect(markup).toContain(
+      "The C2PA record in this image failed its integrity checks. Its contents cannot be relied upon.",
+    );
+    expect(markup).not.toContain("Found in metadata fields such as Software.");
+    expect(markup).not.toContain("result--emph");
+  });
+
   it("keeps the no-provenance state dashed and fills summary gaps", () => {
     const markup = renderToStaticMarkup(
       <InspectionReport
@@ -187,6 +245,28 @@ describe("InspectionReport", () => {
       "This file contains no EXIF, XMP, or C2PA section",
     );
     expect(markup).not.toContain("Where metadata usually gets lost");
+  });
+
+  it("does not change the empty state for a deferred detector", () => {
+    const deferred = report({ verdict: "NO_PROVENANCE_INFORMATION" });
+    deferred.results = {
+      ...deferred.results,
+      trustmark: { status: "not-checked", reason: "not-requested" },
+    };
+    deferred.coverage.skipped = [
+      { id: "trustmark", reason: "not-requested" },
+    ];
+
+    const markup = renderToStaticMarkup(<InspectionReport report={deferred} />);
+    expect(markup).toContain("No provenance record remains");
+    expect(markup).toContain(
+      "This file contains no EXIF, XMP, or C2PA section",
+    );
+    expect(markup).toContain("Where metadata usually gets lost");
+    expect(markup).not.toContain(
+      "This format cannot be inspected, so it was not checked.",
+    );
+    expect(markup).not.toContain("Not applicable to this format: TRUSTMARK");
   });
 
   it("shows an oversized metadata failure instead of a missing section", () => {

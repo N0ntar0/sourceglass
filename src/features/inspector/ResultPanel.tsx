@@ -1,6 +1,7 @@
 import { Icon, type IconName } from "../../components/Icon";
 import { t } from "../../i18n";
 import { getC2pa, getExif, type ProvenanceReport } from "../provenance";
+import { isAiRelatedSignal } from "./isAiRelatedSignal";
 
 interface ResultPresentation {
   heading: string;
@@ -14,9 +15,21 @@ function detectorLabel(id: string): string {
   return id.toUpperCase();
 }
 
-function hasNotChecked(report: ProvenanceReport): boolean {
+function hasUnsupported(report: ProvenanceReport): boolean {
   return Object.values(report.results).some(
-    (result) => result.status === "not-checked",
+    (result) =>
+      result.status === "not-checked" && result.reason === "unsupported",
+  );
+}
+
+function hasInvalidC2paAiSignal(report: ProvenanceReport): boolean {
+  const c2pa = getC2pa(report);
+  return (
+    c2pa.status === "present" &&
+    c2pa.data.validation.integrity === "invalid" &&
+    report.signals.some(
+      (signal) => signal.source === "c2pa" && isAiRelatedSignal(signal),
+    )
   );
 }
 
@@ -27,7 +40,7 @@ function hasErrorCode(report: ProvenanceReport, code: string): boolean {
 }
 
 function emptyReason(report: ProvenanceReport): string | undefined {
-  if (hasNotChecked(report)) return t("emptyReason.notChecked");
+  if (hasUnsupported(report)) return t("emptyReason.notChecked");
   if (hasErrorCode(report, "METADATA_TOO_LARGE")) {
     return t("emptyReason.tooLarge", { limit: "256 KiB" });
   }
@@ -56,6 +69,14 @@ function presentation(report: ProvenanceReport): ResultPresentation {
         className: "result result--emph",
       };
     }
+    if (hasInvalidC2paAiSignal(report)) {
+      return {
+        heading: t("result.ai.explicit.heading"),
+        note: t("result.ai.tampered.note"),
+        icon: "warn",
+        className: "result",
+      };
+    }
     return {
       heading: t("result.ai.heuristic.heading"),
       note: t("result.ai.heuristic.note"),
@@ -74,7 +95,7 @@ function presentation(report: ProvenanceReport): ResultPresentation {
   }
 
   const reason = emptyReason(report);
-  if (hasNotChecked(report)) {
+  if (hasUnsupported(report)) {
     return {
       heading: t("emptyReason.notChecked"),
       icon: "info",
@@ -91,6 +112,9 @@ function presentation(report: ProvenanceReport): ResultPresentation {
 }
 
 function Coverage({ report }: { report: ProvenanceReport }) {
+  const unsupported = report.coverage.skipped.filter(
+    ({ reason }) => reason === "unsupported",
+  );
   const lines = [
     report.coverage.ran.length > 0
       ? t("coverage.checked", {
@@ -102,11 +126,9 @@ function Coverage({ report }: { report: ProvenanceReport }) {
           list: report.coverage.failed.map(detectorLabel).join(", "),
         })
       : undefined,
-    report.coverage.skipped.length > 0
+    unsupported.length > 0
       ? t("coverage.skipped", {
-          list: report.coverage.skipped
-            .map(({ id }) => detectorLabel(id))
-            .join(", "),
+          list: unsupported.map(({ id }) => detectorLabel(id)).join(", "),
         })
       : undefined,
   ].filter((line): line is string => line !== undefined);

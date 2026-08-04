@@ -1,14 +1,14 @@
-# Last Updated: 2026-08-05 15:30
+# Last Updated: 2026-08-05 08:46
 
 > このファイルは**現在地だけ**を書く。過去は残さない。60行以内に保つ。
 > 決定の履歴は [`decisions.md`](./decisions.md)、読み方は [`README.md`](./README.md)。
 
 ## Current Topic
 
-Sourceglass — **Phase 3（UI）実装完了。Phase 4 は未着手。**
+Sourceglass — **Phase 3（UI）レビュー指摘3件の修正完了。Phase 4 は未着手。**
 
 - 作業ブランチ: `feature/phase3-ui`
-- 設計決定: [`decisions.md`](./decisions.md) D-001〜D-034
+- 適用した決定: [`decisions.md`](./decisions.md) D-035 / D-036
 
 ## Working Agreement
 
@@ -18,22 +18,20 @@ Sourceglass — **Phase 3（UI）実装完了。Phase 4 は未着手。**
 
 ## Last Actions
 
-- `src/i18n/en.ts` に確定文言を置き、英語辞書経由で全UIを表示
-- `src/platform/fileAnalysisInput.ts` に FileReader / object URL / canvas の境界実装を追加
-- dropzone、summary、4状態result、coverage、免責、details、OptionalChecks差し込み位置を実装
-- D-034に従い not-checked を「記録なし」と表示せず、metadata消失説明も非表示にした
-- `eslint-plugin-react-hooks` を追加し、recommended-latestを適用
-- privacy E2Eにremote-only画像のUI解析経路を追加し、外部オリジン0件を確認
-- Playwrightで4状態のライト表示とexplicitのダーク表示を保存・目視確認
-- ライト／ダーク双方でexplicit見出しの地と図が反転することをcomputed styleでも確認
-- typecheck / lint / Vitest 47件 / provenance E2E 6件 / app E2E 8件を確認
+- Summary の AI 関連表示を `ai-generation` / `ai-editing` カテゴリだけに限定
+- `not-checked` を reason で分け、`not-requested` が記録なし画面と unsupported 用文言を変えないよう修正
+- integrity invalid の C2PA AI シグナルに確定済みの見出し・`result.ai.tampered.note` を適用
+- 非AIシグナル、deferred detector、invalid C2PA の合成レポート回帰テストを追加
+- 解析エンジンとデザイン保護ファイルは未変更
+- 全チェック通過: typecheck / lint / Vitest 50件 / design:guard / build /
+  provenance E2E 6件 / app E2E 8件
 
 ## Next Step
 
-Phase 3 の実装レビューを受ける。承認されるまで Phase 4 には進まない。
+Phase 3 の修正差分をレビューする。承認されるまで Phase 4 には進まない。
+軽微な任意指摘2件は今回の必須修正に含めず未着手。
 
 ## Resume Prompt
 
-Sourceglass の Phase 3 UI は実装済みです。`AGENTS.md` → `ai_tasks/README.md` →
-`ai_tasks/decisions.md` → `ai_tasks/context_snapshot.md` の順に読み、4状態・D-034・coverage・
-免責・privacy E2E・ライト／ダーク反転をレビューしてください。承認まで Phase 4 には進まないでください。
+Sourceglass Phase 3 の D-035 / D-036 と Summary のレビュー指摘は修正・検証済みです。
+`feature/phase3-ui` の差分をレビューしてください。承認まで Phase 4 には進まないでください。

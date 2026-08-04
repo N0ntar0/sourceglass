@@ -20,6 +20,8 @@ export const en = {
   "result.ai.heuristic.heading": "A mention of an AI tool was found",
   "result.ai.heuristic.note":
     "Found in metadata fields such as Software. This is not verified data like C2PA, and it can be edited.",
+  "result.ai.tampered.note":
+    "However, this C2PA record failed its integrity checks, so its contents cannot be relied upon.",
   "integrity.invalid":
     "The C2PA record in this image failed its integrity checks. Its contents cannot be relied upon.",
   "trust.notEvaluated": "The signer's trustworthiness was not evaluated.",
