@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
+import { setLanguage } from "../../i18n";
 import type {
   C2paData,
   ExifData,
@@ -199,6 +200,44 @@ describe("InspectionReport", () => {
     expect(markup).not.toContain("result--emph");
   });
 
+  it("renders the invalid-C2PA wording in Japanese", () => {
+    const invalidC2pa: SourceResult<C2paData> = {
+      status: "present",
+      data: {
+        ...presentC2pa.data,
+        validation: {
+          ...presentC2pa.data.validation,
+          integrity: "invalid",
+          rawState: "Invalid",
+        },
+      },
+    };
+
+    setLanguage("ja");
+    try {
+      const markup = renderToStaticMarkup(
+        <InspectionReport
+          report={report({
+            verdict: "AI_RELATED_PROVENANCE",
+            basis: "heuristic",
+            c2pa: invalidC2pa,
+          })}
+        />,
+      );
+
+      expect(markup).toContain("AI生成・AI編集を示す記録が見つかりました");
+      expect(markup).toContain(
+        "ただし、この C2PA 記録は整合性チェックに失敗しています。記録された内容は信頼できません。",
+      );
+      expect(markup).toContain(
+        "この画像の C2PA 記録は、内容の整合性チェックに失敗しました。記録された内容は信頼できません。",
+      );
+      expect(markup).not.toContain("result--emph");
+    } finally {
+      setLanguage("en");
+    }
+  });
+
   it("keeps the no-provenance state dashed and fills summary gaps", () => {
     const markup = renderToStaticMarkup(
       <InspectionReport
@@ -253,9 +292,7 @@ describe("InspectionReport", () => {
       ...deferred.results,
       trustmark: { status: "not-checked", reason: "not-requested" },
     };
-    deferred.coverage.skipped = [
-      { id: "trustmark", reason: "not-requested" },
-    ];
+    deferred.coverage.skipped = [{ id: "trustmark", reason: "not-requested" }];
 
     const markup = renderToStaticMarkup(<InspectionReport report={deferred} />);
     expect(markup).toContain("No provenance record remains");

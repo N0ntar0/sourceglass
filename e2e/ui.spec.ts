@@ -6,6 +6,7 @@ interface StateCase {
   id: string;
   fixture: string;
   heading: string;
+  japaneseHeading: string;
   modifier?: "result--emph" | "result--dashed";
 }
 
@@ -29,22 +30,26 @@ const states: StateCase[] = [
     id: "explicit",
     fixture: "c2pa-ai-trained.jpg",
     heading: "A record indicating AI generation or AI editing was found",
+    japaneseHeading: "AI生成・AI編集を示す記録が見つかりました",
     modifier: "result--emph",
   },
   {
     id: "heuristic",
     fixture: "exif-software-aitool.jpg",
     heading: "A mention of an AI tool was found",
+    japaneseHeading: "AIツールに関する記述が見つかりました",
   },
   {
     id: "no-ai",
     fixture: "exif-rich-no-c2pa.jpg",
     heading: "No AI-related record was found",
+    japaneseHeading: "AI生成を示す記録は見つかりませんでした",
   },
   {
     id: "no-provenance",
     fixture: "no-metadata.jpg",
     heading: "No provenance record remains",
+    japaneseHeading: "来歴の記録が残っていませんでした",
     modifier: "result--dashed",
   },
 ];
@@ -54,14 +59,20 @@ async function inspectFixture(
   state: StateCase,
   colorScheme: "light" | "dark",
   testInfo: TestInfo,
+  language: "en" | "ja" = "en",
 ): Promise<void> {
   await page.emulateMedia({ colorScheme });
   await page.goto("/");
+  if (language === "ja") {
+    await page.getByLabel("Language").selectOption("ja");
+  }
   const fixture = fileURLToPath(
     new URL(`../fixtures/${state.fixture}`, import.meta.url),
   );
-  await page.getByLabel("Select Image").setInputFiles(fixture);
-  await expect(page.getByText(state.heading, { exact: true })).toBeVisible();
+  const selectImage = language === "ja" ? "画像を選択" : "Select Image";
+  const heading = language === "ja" ? state.japaneseHeading : state.heading;
+  await page.getByLabel(selectImage).setInputFiles(fixture);
+  await expect(page.getByText(heading, { exact: true })).toBeVisible();
 
   const result = page.locator(".result");
   if (state.modifier === undefined) {
@@ -75,7 +86,7 @@ async function inspectFixture(
   await expect(page.locator(".result__coverage").first()).toBeVisible();
   await expect(page.locator(".disclaimer")).toBeVisible();
   await page.screenshot({
-    path: testInfo.outputPath(`${state.id}-${colorScheme}.png`),
+    path: testInfo.outputPath(`${state.id}-${language}-${colorScheme}.png`),
     fullPage: true,
   });
 }
@@ -83,6 +94,12 @@ async function inspectFixture(
 for (const state of states) {
   test(`renders ${state.id} in light mode`, async ({ page }, testInfo) => {
     await inspectFixture(page, state, "light", testInfo);
+  });
+}
+
+for (const state of states) {
+  test(`renders ${state.id} in Japanese`, async ({ page }, testInfo) => {
+    await inspectFixture(page, state, "light", testInfo, "ja");
   });
 }
 
@@ -110,4 +127,35 @@ test("unsupported input is shown as not checked", async ({ page }) => {
   await expect(
     page.getByText("No provenance record remains", { exact: true }),
   ).toHaveCount(0);
+});
+
+test("unsupported input is shown as not checked in Japanese", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByLabel("Language").selectOption("ja");
+  await page.getByLabel("画像を選択").setInputFiles({
+    name: "fixture.gif",
+    mimeType: "image/gif",
+    buffer: Buffer.from("GIF89a"),
+  });
+  await expect(
+    page.getByText("この形式は解析できないため、調べていません。", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("来歴の記録が残っていませんでした", { exact: true }),
+  ).toHaveCount(0);
+});
+
+test("keeps the selected language after reload", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("Language").selectOption("ja");
+  await page.reload();
+
+  await expect(page.getByLabel("Language")).toHaveValue("ja");
+  await expect(
+    page.getByText("画像に残された来歴情報を調べます。", { exact: true }),
+  ).toBeVisible();
 });

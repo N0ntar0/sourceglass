@@ -11,5 +11,7 @@ describe("App", () => {
     expect(markup).toContain("Inspect the provenance of an image.");
     expect(markup).toContain("Drop an image here");
     expect(markup).toContain("Your images never leave your browser");
+    expect(markup).toContain('<select class="btn" aria-label="Language"');
+    expect(markup).toContain("日本語");
   });
 });

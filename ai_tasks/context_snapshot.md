@@ -1,13 +1,13 @@
-# Last Updated: 2026-08-05 17:00
+# Last Updated: 2026-08-05 17:55
 
 > このファイルは**現在地だけ**を書く。過去は残さない。60行以内に保つ。
 > 決定の履歴は [`decisions.md`](./decisions.md)、読み方は [`README.md`](./README.md)。
 
 ## Current Topic
 
-Sourceglass — **Phase 3 完了・承認済み。Phase 4（i18n）に進んでよい。**
+Sourceglass — **Phase 4（i18n）実装完了・レビュー待ち。Phase 5 は未着手。**
 
-- 作業ブランチ: `feature/phase3-ui`（承認コミット `3f7217a`）
+- 作業ブランチ: `feature/phase3-ui`
 - 設計決定: [`decisions.md`](./decisions.md) D-001〜D-036
 
 ## Working Agreement
@@ -18,24 +18,20 @@ Sourceglass — **Phase 3 完了・承認済み。Phase 4（i18n）に進んで�
 
 ## Last Actions
 
-- Phase 3 レビュー指摘3件を修正し、設計担当が**再レビューして承認**
-  - Summary の AI 行を `ai-generation` / `ai-editing` に限定（`isAiRelatedSignal` を抽出）
-  - `not-checked` を `reason` で分離。`not-requested` は表示を変えない（D-036）
-  - integrity invalid 由来の降格に `result.ai.tampered.note` を適用（D-035）
-- 設計担当が実測確認: typecheck / lint / design:guard / build /
-  **Vitest 50件 / provenance E2E 6件 / app E2E 8件**
-- 追加テストが**誤った表示の不在**をアサートしている点が良い
-  （v0.2 の TrustMark を模した deferred detector の回帰テストを含む）
-- 解析エンジンとデザイン保護3ファイルは未変更（差分で確認）
+- `ja.ts` を `Record<TranslationKey, string>` で追加し、確定済み日本語文言を収録
+- `navigator.language` を既定、`localStorage` の選択を優先する英日切替を実装
+- 既存 `.btn` だけで切替 UI を追加。新しい CSS クラスは追加していない
+- 詳細テーブルの見出し・フィールド・状態値は英数字のまま維持
+- 日本語の explicit / heuristic / AI無し / 記録無しを E2E とスクリーンショットで確認
+- 日本語の not-checked を E2E、tampered を合成レポートのユニットテストで確認
+- `ja.ts` から `status.error` を一時削除し、typecheck が TS2741 で失敗することを実測後に復元
+- 解析エンジンとデザイン保護3ファイルは未変更
+- 全チェック通過: typecheck / lint / Vitest 56件 / design:guard / build /
+  provenance E2E 6件 / app E2E 14件
 
 ## Next Step
 
-**Phase 4（i18n）。** `implementation_plan.md` Phase 4 と `copy.md` に従う。
-
-1. `src/i18n/ja.ts` を `Record<TranslationKey, string>` として作る。**翻訳漏れを型エラーにする**
-2. 言語切替（`navigator.language` 既定 / `localStorage` 保存）
-3. `copy.md` の日本語をそのまま使う。言い換えない
-4. 4状態 + `not-checked` + `tampered` を日本語でも表示確認する
+Phase 4 の実装差分と日本語表示をレビューする。承認されるまで Phase 5 には進まない。
 
 ## 未対応（軽微・任意のまま）
 
@@ -47,6 +43,5 @@ Sourceglass — **Phase 3 完了・承認済み。Phase 4（i18n）に進んで�
 
 ## Resume Prompt
 
-Sourceglass の Phase 4（i18n）です。`AGENTS.md` → `ai_tasks/README.md` →
-`ai_tasks/decisions.md` → `implementation_plan.md` Phase 4 → `copy.md` の順に読んでください。
-Phase 3 は承認済みです。`copy.md` の日本語を言い換えずにそのまま使ってください。
+Sourceglass Phase 4 の i18n は実装・検証済みです。英日辞書、言語選択の保存、
+日本語6状態、翻訳漏れ型ガードをレビューしてください。承認まで Phase 5 には進まないでください。
