@@ -9,11 +9,12 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:e2e": "vite build --config vite.e2e.config.ts --configLoader runner",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --max-warnings=0",
     "test": "vitest run",
-    "test:e2e": "npm run build && node scripts/run-e2e.mjs",
+    "test:e2e": "npm run build:e2e && node scripts/run-e2e.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "design:guard": "node scripts/design-guard.mjs",

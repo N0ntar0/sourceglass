@@ -29,9 +29,6 @@ ffmpeg -hide_banner -loglevel error -f lavfi -i color=c=white:s=128x128 \
   -frames:v 1 "$work_dir/base.webp"
 ffmpeg -hide_banner -loglevel error -f lavfi -i color=c=white:s=128x128 \
   -frames:v 1 "$work_dir/base.avif"
-ffmpeg -hide_banner -loglevel error -y -f lavfi \
-  -i "nullsrc=s=5000x5000,noise=alls=100:allf=u" -frames:v 1 -q:v 1 \
-  "$FIXTURES_DIR/performance-large.jpg"
 
 sign_created() {
   local source_type="$1"
@@ -113,10 +110,15 @@ head -c 64 "$work_dir/base.jpg" >"$FIXTURES_DIR/broken-truncated.jpg"
 printf 'This is not an image.\n' >"$FIXTURES_DIR/broken-not-image.jpg"
 : >"$FIXTURES_DIR/broken-zero-byte.jpg"
 
-head -c 11000000 /dev/zero | tr '\0' X >"$work_dir/large-xmp.txt"
+head -c 300000 /dev/zero | tr '\0' X >"$work_dir/large-xmp.txt"
 cp "$work_dir/base.jpg" "$FIXTURES_DIR/broken-huge-exif.jpg"
 exiftool -overwrite_original "-XMP-dc:Description<=$work_dir/large-xmp.txt" \
   "$FIXTURES_DIR/broken-huge-exif.jpg" >/dev/null
+
+head -c 245000 /dev/zero | tr '\0' X >"$work_dir/within-limit-xmp.txt"
+cp "$work_dir/base.jpg" "$FIXTURES_DIR/xmp-large-within-limit.jpg"
+exiftool -overwrite_original "-XMP-dc:Description<=$work_dir/within-limit-xmp.txt" \
+  "$FIXTURES_DIR/xmp-large-within-limit.jpg" >/dev/null
 
 for official_path in \
   legacy/1.4/image/jpeg/adobe-20220124-CA.jpg \

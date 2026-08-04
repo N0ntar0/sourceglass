@@ -136,6 +136,8 @@ knowing where it looked.
 - **No remote manifests.** C2PA manifests stored remotely rather than embedded are not
   fetched, and therefore not detected. This is a deliberate consequence of not making
   network requests.
+- **The first C2PA inspection loads approximately 3 MB of compressed WebAssembly.** It is
+  served from the same origin and is not loaded with the initial page.
 - **Pixel-level watermarks are not yet checked.** See the roadmap below.
 
 ---

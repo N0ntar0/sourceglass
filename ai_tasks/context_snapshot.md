@@ -1,13 +1,14 @@
-# Last Updated: 2026-08-05 12:10
+# Last Updated: 2026-08-05 12:30
 
 > このファイルは**現在地だけ**を書く。過去は残さない。60行以内に保つ。
 > 決定の履歴は [`decisions.md`](./decisions.md)、読み方は [`README.md`](./README.md)。
 
 ## Current Topic
 
-Sourceglass — **ExifReader 実測の設計レビュー完了（D-022〜D-028）。Phase 2 を再開してよい。**
+Sourceglass — **Phase 2（解析エンジン）実装完了。Phase 3 は未着手。**
 
 - 作業ブランチ: `feature/phase2-provenance-engine`
+- 設計決定: [`decisions.md`](./decisions.md) D-001〜D-028
 - 実測記録: [`20260805_sourceglass_phase2/measurement.md`](./20260805_sourceglass_phase2/measurement.md)
 
 ## Working Agreement
@@ -18,32 +19,21 @@ Sourceglass — **ExifReader 実測の設計レビュー完了（D-022〜D-028�
 
 ## Last Actions
 
-- D-019 / D-020 の境界を実装し、lint が実際に落ちることを確認済み
-- `fixtures.md` のフィクスチャを生成し、出典・ライセンス・SHA-256 を記録
-- ExifReader 4.41.3 を実測 → **遅いのはファイルサイズではなくメタデータ量**と判明
-  - 通常 13.3 MB JPEG: 0.1〜1.5 ms / 巨大 XMP 11.0 MB JPEG: 2,856〜3,765 ms
-- 設計レビュー完了。**Worker 化はしない。上限で処理量を縛る**（D-022〜D-028）
+- `src/features/provenance/` に型、runner、container scan、C2PA / EXIF / XMP detector、rules を実装
+- React / inspector / platform の import 禁止を手動確認し、Vitest の既定環境を node に維持
+- 256 KiB のメタデータ上限と 8 MiB の AVIF / HEIC 代替上限を実装
+- 上限直下 248,873 bytes の ExifReader 停止時間を実測（最大 44.3 ms）
+- C2PA の全 manifest / action 走査、integrity と signerTrust の分離、invalid 時の降格を実装
+- remote-only を含む Playwright 解析経路で外部オリジンへのリクエスト 0 件を確認
+- フィクスチャの出典・ライセンス・SHA-256 を記録し、全ファイルを 1 MiB 未満に調整
+- Phase 2 の Vitest 31件、Playwright 7件を追加
 
 ## Next Step
 
-**Phase 2 を再開する。着手順は次のとおり。**
-
-1. **`containerScan` と上限を先に入れる**（D-023）
-   - JPEG APPn / PNG チャンク / WebP RIFF を走査し、合計メタデータバイト数を出す
-   - `METADATA_BYTES_LIMIT = 262_144`（256 KiB）超過なら ExifReader を呼ばない
-   - 走査結果は `copy.md` §3.5 の「領域が無い」/「技術情報のみ」の出し分けにも使う
-2. **フィクスチャを作り直す**（D-028）
-   - `broken-huge-exif` を約 320 KB に、`performance-large.jpg` はコミットしない
-   - `xmp-large-within-limit`（メタデータ約 250 KB）を追加する
-3. **上限のすぐ内側で実測する**（D-024）
-   - 50 ms を超えたら実装を進めず相談する。256 KiB は外挿値なので裏を取る
-4. `MetadataReader` ポートを定義し、実装は inline（D-025）
-5. 型 → detector → rules の順に実装。**UI は書かない**
+Phase 2 の実装レビューを受ける。Phase 3 はフィクスチャと Phase 2 のレビュー承認後に着手する。
 
 ## Resume Prompt
 
-Sourceglass の Phase 2 再開です。`AGENTS.md` → `ai_tasks/README.md` →
-`ai_tasks/decisions.md`（特に D-022〜D-028）→ `implementation_plan.md` §2.0.1 の順に読んでください。
-ExifReader の実測レビューは完了し、**Worker 化はせず上限で縛る**方針が確定しています。
-再検討せず、containerScan と上限 → フィクスチャ作り直し → 上限内での実測 → エンジン実装、
-の順で進めてください。
+Sourceglass の Phase 2 実装は完了しています。`AGENTS.md` → `ai_tasks/README.md` →
+`ai_tasks/decisions.md` → `ai_tasks/context_snapshot.md` の順に読み、Phase 2 の差分と検証結果を
+レビューしてください。承認されるまで Phase 3 には進まないでください。

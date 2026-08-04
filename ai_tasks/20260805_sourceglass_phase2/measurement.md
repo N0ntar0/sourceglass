@@ -1,4 +1,4 @@
-# Last Updated: 2026-08-05 11:10
+# Last Updated: 2026-08-05 12:30
 
 # Phase 2 ExifReader main-thread measurement
 
@@ -30,6 +30,8 @@ high-entropy JPEG without a large metadata block.
 
 Input: `fixtures/broken-huge-exif.jpg` (11,016,908 bytes). The file contains an approximately
 11 MB XMP `dc:Description` value and exercises the required oversized-metadata case.
+This initial fixture was then replaced under D-028 by the current 303,952-byte fixture,
+which remains just above the parser limit without exceeding 1 MB.
 
 ```json
 [
@@ -46,3 +48,21 @@ Input: `fixtures/broken-huge-exif.jpg` (11,016,908 bytes). The file contains an 
 The normal large file is below the 50 ms threshold. The oversized-XMP case exceeds it by a wide
 margin. Per D-013 and the Phase 2 instructions, engine implementation is paused pending a design
 decision about the EXIF/XMP detector execution strategy and oversized metadata handling.
+
+## Review follow-up: fixture immediately below the limit
+
+After D-022 through D-028 set the metadata limit to 256 KiB, the oversized fixture was reduced and
+`fixtures/xmp-large-within-limit.jpg` was generated at 248,873 bytes. Playwright Chromium measured:
+
+```json
+[
+  { "bytes": 248873, "elapsedMs": 44.29999999701977 },
+  { "bytes": 248873, "elapsedMs": 33.20000000298023 },
+  { "bytes": 248873, "elapsedMs": 30.900000005960464 },
+  { "bytes": 248873, "elapsedMs": 31.5 },
+  { "bytes": 248873, "elapsedMs": 32.20000000298023 }
+]
+```
+
+The maximum was 44.3 ms, below D-024's 50 ms threshold. Phase 2 engine implementation may resume
+without adding an EXIF/XMP Worker.
