@@ -67,6 +67,39 @@
 
 ---
 
+## 2.5 C2PA の integrity / trust（verdict とは独立に表示する）
+
+Phase 0 の実測により、**`validation_state: "Valid"` と `signingCredential.untrusted` は
+同時に成立する**ことが判明した。「検証に通った」と「発行者が信頼できる」は別の話であり、
+**まとめて表示したらこの製品は嘘をつく。**
+
+verdict を増やさず、**独立した行**として合成する（どの verdict とも共存しうる）。
+
+### 整合性チェックに失敗した場合（`integrity === 'invalid'`）
+
+C2PA の記録は存在するが、ハッシュや署名の照合に失敗した状態。
+
+| key | ja | en |
+| --- | --- | --- |
+| `integrity.invalid` | この画像の C2PA 記録は、内容の整合性チェックに失敗しました。記録された内容は信頼できません。 | The C2PA record in this image failed its integrity checks. Its contents cannot be relied upon. |
+
+**この場合、C2PA 由来の AI シグナルを `explicit` として扱わない**（`implementation_plan.md` D6）。
+改ざん検知に失敗した記録の中身を「正式な表明」として提示できないため。
+
+### 署名者の信頼性（MVP では常にこれ）
+
+| key | ja | en |
+| --- | --- | --- |
+| `trust.notEvaluated` | 署名者の信頼性は評価していません。 | The signer's trustworthiness was not evaluated. |
+
+**「この署名者は信頼できません」と書かないこと。**
+Sourceglass が意図的にトラストリストを設定していないだけであり、
+署名者を否定的に評価したわけではない。この2つはまったく違う。
+
+生の `signingCredential.untrusted` などのコードは、**詳細タブにのみ**表示する。
+
+---
+
 ## 3. 検査範囲（coverage）
 
 **必ず結果の近くに出す。**「見つからなかった」は検査範囲に依存するため、

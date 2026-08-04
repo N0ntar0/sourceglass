@@ -95,7 +95,50 @@ ai_tasks/20260804_sourceglass_mvp_design/spike_result.md
 
 ---
 
-## Phase 1 以降でスコープを差し替えるときの雛形
+## Phase 1 用（Phase 0 レビュー完了後・そのまま貼れる）
+
+```
+Sourceglass の Phase 1（プロジェクト基盤）を実装してください。
+
+Phase 0 の実測と設計レビューは完了しています。**再検討しないでください。**
+
+先に読むもの:
+  AGENTS.md
+  ai_tasks/context_snapshot.md
+  ai_tasks/20260804_sourceglass_mvp_design/implementation_plan.md
+    ← 特に「Phase 0 の決定事項」D1〜D6。ここが今回の前提です
+
+決定済みで、実装時に迷わないでほしい点:
+
+- 外部通信を止めているのは CSP です。ライブラリの設定ではありません。
+  `remoteManifestFetch: false` は多層防御であり、効かなくても安全な位置づけです。
+  公開型に無い設定の型拡張は detectors/c2pa/settings.ts の1ファイルだけに閉じてください。
+  パッケージ型への declaration merging はしないでください。
+
+- 開発も HTTPS です（@vitejs/plugin-basic-ssl を dev 依存として承認済み）。
+  CSP は1本だけで、開発と本番で同じものを使います。blob: を入れないでください。
+  public/_headers は /* に当ててください。Worker スクリプトのレスポンスにも
+  CSP が乗る必要があります。
+
+- src/workers/inspect.worker.ts は作りません。実測でメインスレッド停止が 0.4ms でした。
+  ただし structured-clone 可能・DOM 非依存の制約は維持してください。
+
+- src/styles/tokens.css、src/styles/base.css、src/components/Icon.tsx は
+  設計担当が作成済みです。編集しないでください。ハッシュで保護されています。
+  package.json に design:guard と design:lock のスクリプトを追加してください。
+
+Phase 1 の完了時に次を通してください。
+  npm run typecheck && npm run design:guard && npm run build
+
+spike/ は Phase 1 の土台ができた時点で削除して構いません
+（成果は spike_result.md に記録済みです）。
+
+Phase 2 には自動で進まないでください。Phase 1 が終わったら報告してください。
+```
+
+---
+
+## Phase 2 以降でスコープを差し替えるときの雛形
 
 ```
 ## 今回のスコープ: Phase N（...）

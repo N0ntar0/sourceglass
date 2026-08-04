@@ -146,6 +146,33 @@ npm run design:guard    # 規約違反を検査（CI で実行）
 `SourceResult<T>` は `present` / `absent` / `error` の3状態。
 **この区別を潰す実装をしない。** ユーザーに見せる意味がまったく違う。
 
+C2PA では実測上、次のように分かれる（`implementation_plan.md` D5）。
+
+- C2PA 無し → `reader` が `null` → `absent`
+- 破損 / 0バイト → **例外** → `error`
+
+### 2.5 integrity と signer trust を混同しない
+
+`validation_state: "Valid"` と `signingCredential.untrusted` は**同時に成立する**（実測）。
+
+- `integrity` = ハッシュ・署名の整合が取れているか
+- `signerTrust` = 発行者が信頼できるか
+
+**この2つを1つのフィールドにまとめない。** まとめた瞬間にこの製品は嘘をつく。
+MVP はトラストリストを設定しないので `signerTrust` は常に `'not-evaluated'`。
+**`signingCredential.untrusted` を `'not-trusted'` にマップしないこと**（言い過ぎになる）。
+
+`integrity === 'invalid'` のとき、**C2PA 由来の AI シグナルを `explicit` にしない。**
+
+### 2.6 プライバシーの保証は CSP に置く
+
+外部通信を止めているのは **CSP であって、ライブラリの設定ではない。**
+`remoteManifestFetch: false` などは多層防御であり、**効かなくても安全**な位置づけ。
+
+- 公開型に無い設定に依存する箇所は `detectors/c2pa/settings.ts` の1ファイルに閉じる
+- パッケージ型への declaration merging をしない（アップグレードで静かに壊れる）
+- **README や UI に「SDK の設定で無効化している」と書かない**
+
 ---
 
 ## 3. 実装ルール
