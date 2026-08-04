@@ -1,0 +1,221 @@
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it } from "vitest";
+
+import type {
+  C2paData,
+  ExifData,
+  ProvenanceReport,
+  SignalBasis,
+  SourceResult,
+} from "../provenance";
+import { InspectionReport } from "./InspectionReport";
+
+function report(options: {
+  verdict: ProvenanceReport["verdict"];
+  basis?: SignalBasis | null;
+  c2pa?: SourceResult<C2paData>;
+  exif?: SourceResult<ExifData>;
+}): ProvenanceReport {
+  const c2pa = options.c2pa ?? { status: "absent" };
+  const exif = options.exif ?? { status: "absent" };
+  const results: Record<string, SourceResult<unknown>> = {
+    c2pa,
+    exif,
+    xmp: { status: "absent" },
+  };
+  const signals =
+    options.verdict === "AI_RELATED_PROVENANCE"
+      ? [
+          {
+            id: "fixture.signal",
+            source:
+              c2pa.status === "present" ? ("c2pa" as const) : ("exif" as const),
+            category: "ai-generation" as const,
+            basis: options.basis ?? "heuristic",
+            labelKey: "fixture.signal",
+            evidence: { path: "fixture.path", value: "fixture value" },
+          },
+        ]
+      : [];
+
+  return {
+    file: { name: "fixture.jpg", size: 1024, mimeType: "image/jpeg" },
+    results,
+    coverage: {
+      ran: Object.entries(results)
+        .filter(([, result]) => result.status !== "not-checked")
+        .map(([id]) => id),
+      skipped: [],
+      failed: [],
+      withMeaningfulData:
+        options.verdict === "NO_PROVENANCE_INFORMATION" ? [] : ["exif"],
+    },
+    signals,
+    verdict: options.verdict,
+    basis: options.basis ?? null,
+    analyzedAt: "2026-08-05T00:00:00.000Z",
+    engineVersion: "0.1.0",
+  };
+}
+
+const presentC2pa: SourceResult<C2paData> = {
+  status: "present",
+  data: {
+    activeManifest: "fixture",
+    manifests: {
+      fixture: {
+        label: "fixture",
+        title: "Fixture",
+        claimGenerators: ["Fixture Generator"],
+        assertions: [],
+      },
+    },
+    validation: {
+      integrity: "valid",
+      signerTrust: "not-evaluated",
+      rawState: "Valid",
+      failures: [],
+    },
+  },
+};
+
+const presentExif: SourceResult<ExifData> = {
+  status: "present",
+  data: {
+    fields: {
+      "exif.Software": {
+        values: [
+          { value: "OpenAI GPT Image", truncated: false, originalLength: 16 },
+        ],
+        originalCount: 1,
+        arrayTruncated: false,
+      },
+    },
+    entryCount: 1,
+  },
+};
+
+describe("InspectionReport", () => {
+  it("renders the explicit state with a heading-only emphasis", () => {
+    const markup = renderToStaticMarkup(
+      <InspectionReport
+        report={report({
+          verdict: "AI_RELATED_PROVENANCE",
+          basis: "explicit",
+          c2pa: presentC2pa,
+        })}
+      />,
+    );
+    expect(markup).toContain("result result--emph");
+    expect(markup).toContain(
+      "A record indicating AI generation or AI editing was found",
+    );
+    expect(markup).toContain("fixture.path");
+  });
+
+  it("renders the heuristic state without emphasis", () => {
+    const markup = renderToStaticMarkup(
+      <InspectionReport
+        report={report({
+          verdict: "AI_RELATED_PROVENANCE",
+          basis: "heuristic",
+          exif: presentExif,
+        })}
+      />,
+    );
+    expect(markup).toContain("A mention of an AI tool was found");
+    expect(markup).not.toContain("result--emph");
+  });
+
+  it("keeps the no-AI state solid and shows coverage", () => {
+    const markup = renderToStaticMarkup(
+      <InspectionReport
+        report={report({
+          verdict: "NO_AI_RELATED_PROVENANCE_FOUND",
+          exif: presentExif,
+        })}
+      />,
+    );
+    expect(markup).toContain("No AI-related record was found");
+    expect(markup).not.toContain("result--dashed");
+    expect(markup).toContain("Checked:");
+  });
+
+  it("keeps the no-provenance state dashed and fills summary gaps", () => {
+    const markup = renderToStaticMarkup(
+      <InspectionReport
+        report={report({ verdict: "NO_PROVENANCE_INFORMATION" })}
+      />,
+    );
+    expect(markup).toContain("result result--dashed");
+    expect(markup).toContain("No provenance record remains");
+    expect(markup).toContain(
+      "This file contains no EXIF, XMP, or C2PA section",
+    );
+    expect(markup).toContain("—");
+    expect(markup).toContain(
+      "Sourceglass only reads what is recorded in the image.",
+    );
+  });
+
+  it("does not describe a not-checked result as a missing record", () => {
+    const notChecked = report({ verdict: "NO_PROVENANCE_INFORMATION" });
+    notChecked.results = {
+      c2pa: { status: "not-checked", reason: "unsupported" },
+      exif: { status: "not-checked", reason: "unsupported" },
+      xmp: { status: "not-checked", reason: "unsupported" },
+    };
+    notChecked.coverage = {
+      ran: [],
+      skipped: [
+        { id: "c2pa", reason: "unsupported" },
+        { id: "exif", reason: "unsupported" },
+        { id: "xmp", reason: "unsupported" },
+      ],
+      failed: [],
+      withMeaningfulData: [],
+    };
+
+    const markup = renderToStaticMarkup(
+      <InspectionReport report={notChecked} />,
+    );
+    expect(markup).toContain(
+      "This format cannot be inspected, so it was not checked.",
+    );
+    expect(markup).not.toContain("No provenance record remains");
+    expect(markup).not.toContain(
+      "This file contains no EXIF, XMP, or C2PA section",
+    );
+    expect(markup).not.toContain("Where metadata usually gets lost");
+  });
+
+  it("shows an oversized metadata failure instead of a missing section", () => {
+    const tooLarge = report({ verdict: "NO_PROVENANCE_INFORMATION" });
+    tooLarge.results = {
+      c2pa: { status: "absent" },
+      exif: {
+        status: "error",
+        error: { code: "METADATA_TOO_LARGE", message: "too large" },
+      },
+      xmp: {
+        status: "error",
+        error: { code: "METADATA_TOO_LARGE", message: "too large" },
+      },
+    };
+    tooLarge.coverage = {
+      ran: ["c2pa"],
+      skipped: [],
+      failed: ["exif", "xmp"],
+      withMeaningfulData: [],
+    };
+
+    const markup = renderToStaticMarkup(<InspectionReport report={tooLarge} />);
+    expect(markup).toContain(
+      "The metadata section was too large to read (limit 256 KiB).",
+    );
+    expect(markup).toContain("Could not be read: EXIF, XMP");
+    expect(markup).not.toContain(
+      "This file contains no EXIF, XMP, or C2PA section",
+    );
+  });
+});

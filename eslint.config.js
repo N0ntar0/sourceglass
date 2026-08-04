@@ -1,4 +1,5 @@
 import tseslint from "typescript-eslint";
+import reactHooks from "eslint-plugin-react-hooks";
 
 export default tseslint.config(
   {
@@ -17,6 +18,10 @@ export default tseslint.config(
     rules: {
       "@typescript-eslint/no-explicit-any": "error",
     },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ...reactHooks.configs.flat["recommended-latest"],
   },
   {
     files: ["src/features/provenance/**/*.ts"],

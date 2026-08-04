@@ -9,5 +9,7 @@ describe("App", () => {
 
     expect(markup).toContain("Sourceglass");
     expect(markup).toContain("Inspect the provenance of an image.");
+    expect(markup).toContain("Drop an image here");
+    expect(markup).toContain("Your images never leave your browser");
   });
 });

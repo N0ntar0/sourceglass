@@ -1,13 +1,13 @@
-# Last Updated: 2026-08-05 14:45
+# Last Updated: 2026-08-05 15:30
 
 > このファイルは**現在地だけ**を書く。過去は残さない。60行以内に保つ。
 > 決定の履歴は [`decisions.md`](./decisions.md)、読み方は [`README.md`](./README.md)。
 
 ## Current Topic
 
-Sourceglass — **Phase 2 完了・承認済み。Phase 3（UI）に進んでよい。**
+Sourceglass — **Phase 3（UI）実装完了。Phase 4 は未着手。**
 
-- 作業ブランチ: `feature/phase2-provenance-engine`（承認コミット `d810dfa`）
+- 作業ブランチ: `feature/phase3-ui`
 - 設計決定: [`decisions.md`](./decisions.md) D-001〜D-034
 
 ## Working Agreement
@@ -18,37 +18,22 @@ Sourceglass — **Phase 2 完了・承認済み。Phase 3（UI）に進んでよ
 
 ## Last Actions
 
-- Phase 2 レビュー指摘 D-029〜D-033 を修正し、設計担当が**再レビューして承認**
-  - `claim_generator` / `claim_generator_info` の両方を正規化。**公式フィクスチャで実際に検証**
-  - `validation_state: "Trusted"` → `signerTrust: 'trusted'`（到達しない旨のコメント付き）
-  - `SourceResult` に `not-checked` を追加。runner と selectors の両方で伝播
-  - 上限計数を全 APPn / PNG 5種 / WebP 3種に拡大。`huge-icc.jpg` で回帰検証
-  - privacy E2E を**出荷用 `vite build` の成果物**に対して実行するよう分離
-- 設計担当が実測確認: typecheck / lint / design:guard / build /
-  **Vitest 41件 / provenance E2E 6件 / privacy E2E 1件**、`fixtures/` 1.7 MB（1 MiB 超 0件）
-- privacy E2E が `index-B5nkaHvQ.js`（本番ビルドと同一ハッシュ）に対して走ることを確認
-- 新しい決定 **D-034**（UI は `not-checked` を「記録が無い」と表示しない）を追加
+- `src/i18n/en.ts` に確定文言を置き、英語辞書経由で全UIを表示
+- `src/platform/fileAnalysisInput.ts` に FileReader / object URL / canvas の境界実装を追加
+- dropzone、summary、4状態result、coverage、免責、details、OptionalChecks差し込み位置を実装
+- D-034に従い not-checked を「記録なし」と表示せず、metadata消失説明も非表示にした
+- `eslint-plugin-react-hooks` を追加し、recommended-latestを適用
+- privacy E2Eにremote-only画像のUI解析経路を追加し、外部オリジン0件を確認
+- Playwrightで4状態のライト表示とexplicitのダーク表示を保存・目視確認
+- ライト／ダーク双方でexplicit見出しの地と図が反転することをcomputed styleでも確認
+- typecheck / lint / Vitest 47件 / provenance E2E 6件 / app E2E 8件を確認
 
 ## Next Step
 
-**Phase 3（UI）。** `implementation_plan.md` Phase 3 と `design.md` に従う。
-
-1. `platform/` に `AnalysisInput` の実装（File → bytes / pixels）を書く。
-   `features/provenance/` からは import しない（eslint が禁止済み）
-2. 文言は最初から `src/i18n/en.ts` に置く。Phase 4 は `ja.ts` と切替を足すだけにする
-3. `src/styles/base.css` のクラスを**当てるだけ**。色・余白を新しく決めない
-4. `not-checked` の表示（D-034）と `coverage` の表示を必ず入れる
-5. `OptionalChecks.tsx` の差し込み位置を確保する（v0.2 用・v0.1 では非表示）
-
-## 未対応（軽微・任意）
-
-- `reader.free()` 失敗が成功結果を error で上書きする
-- `prepareMetadata` の reader 引数がキャッシュヒット時に無視される
-- `METADATA_TOO_LARGE` 時に `scan` を捨てている
+Phase 3 の実装レビューを受ける。承認されるまで Phase 4 には進まない。
 
 ## Resume Prompt
 
-Sourceglass の Phase 3（UI）です。`AGENTS.md` → `ai_tasks/README.md` →
-`ai_tasks/decisions.md` → `implementation_plan.md` Phase 3 → `copy.md` → `design.md`
-の順に読んでください。Phase 2 は承認済みです。
-`src/styles/` と `src/components/Icon.tsx` は編集禁止で、クラスを当てるだけにしてください。
+Sourceglass の Phase 3 UI は実装済みです。`AGENTS.md` → `ai_tasks/README.md` →
+`ai_tasks/decisions.md` → `ai_tasks/context_snapshot.md` の順に読み、4状態・D-034・coverage・
+免責・privacy E2E・ライト／ダーク反転をレビューしてください。承認まで Phase 4 には進まないでください。
