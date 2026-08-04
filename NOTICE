@@ -1,0 +1,82 @@
+Sourceglass
+Copyright (c) 2026 N0ntar0
+
+This product is licensed under the MIT License (see LICENSE).
+
+It includes and depends on third-party components listed below. Each remains
+under its own license; those licenses are not superseded by the MIT License
+that covers Sourceglass itself.
+
+================================================================================
+Runtime dependencies
+================================================================================
+
+--------------------------------------------------------------------------------
+@contentauth/c2pa-web  (and @contentauth/c2pa-wasm, @contentauth/c2pa-types)
+--------------------------------------------------------------------------------
+Reading and validating C2PA Content Credentials.
+
+  Project: https://github.com/contentauth/c2pa-js
+  License: MIT
+  Copyright (c) Adobe Inc. and contributors
+
+The WebAssembly binary shipped with this package is bundled into the Sourceglass
+build output and served from the same origin. It is not modified.
+
+--------------------------------------------------------------------------------
+ExifReader
+--------------------------------------------------------------------------------
+Parsing EXIF, XMP, IPTC and ICC metadata.
+
+  Project: https://github.com/mattiasw/ExifReader
+  License: Mozilla Public License 2.0 (MPL-2.0)
+  Copyright (c) Mattias Wallander and contributors
+
+MPL-2.0 is a file-level copyleft license. Sourceglass uses ExifReader as an
+unmodified dependency and does not incorporate or alter its source files, so
+the copyleft obligation does not extend to Sourceglass's own source code.
+
+If you modify ExifReader's source files, those modified files remain subject to
+MPL-2.0 and their source must be made available. Sourceglass's policy is not to
+fork or patch ExifReader; upstream contributions are preferred.
+
+  A copy of MPL-2.0: https://mozilla.org/MPL/2.0/
+
+================================================================================
+Test fixtures
+================================================================================
+
+--------------------------------------------------------------------------------
+C2PA public test files
+--------------------------------------------------------------------------------
+Used as reference fixtures for conformance testing.
+
+  Source:  https://spec.c2pa.org/public-testfiles/
+  License: Creative Commons Attribution-ShareAlike (CC BY-SA)
+  Credit:  Coalition for Content Provenance and Authenticity (C2PA)
+
+These files are redistributed unmodified. They are not resized, re-encoded, or
+cropped -- doing so would both destroy the metadata under test and create an
+adaptation subject to the ShareAlike term.
+
+--------------------------------------------------------------------------------
+Generated image fixtures
+--------------------------------------------------------------------------------
+Fixtures under fixtures/real/ were produced with third-party generative AI
+services (such as OpenAI, Adobe Firefly, and Google Gemini/Imagen) solely to
+verify that Sourceglass reads their provenance data correctly. They are subject
+to the terms of the service that produced them.
+
+Fixtures generated with c2patool are original works created for this project and
+are covered by the MIT License above.
+
+================================================================================
+Referenced specifications and vocabularies
+================================================================================
+
+Sourceglass interprets provenance data according to these specifications. No
+code from them is included.
+
+  C2PA Specification            https://spec.c2pa.org/
+  IPTC NewsCodes                http://cv.iptc.org/newscodes/digitalsourcetype/
+  IPTC Photo Metadata Standard  https://iptc.org/standards/photo-metadata/

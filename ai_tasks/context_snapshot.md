@@ -51,8 +51,11 @@ Sourceglass — Open-source image provenance inspector の MVP 設計
 - **README.md 初版**と**エージェント規約**を作成
   - `AGENTS.md` を正本（CodeX / Claude / その他共通）、`CLAUDE.md` は `@AGENTS.md` で参照 + Claude 固有の補足
   - README は英語主体。未実装であることを Status バナーで明示
-  - README から `LICENSE` / `NOTICE` / `e2e/privacy.spec.ts` / `public/_headers` を参照しているが、
-    **これらのファイルはまだ存在しない**（実装フェーズで作成）
+  - README.ja.md も作成し相互リンク。`AGENTS.md` §1.5 に「英日を同時更新する」規約を追加
+- **`LICENSE`（MIT / Copyright (c) 2026 N0ntar0）と `NOTICE` を作成**
+  - NOTICE に c2pa-web(MIT) / ExifReader(MPL-2.0) / C2PA 公式テストファイル(CC BY-SA) を記載
+  - ExifReader は**フォーク・パッチしない方針**を NOTICE に明文化（MPL-2.0 の伝播回避）
+- README から参照している `e2e/privacy.spec.ts` / `public/_headers` は**まだ存在しない**（Phase 1・6 で作成）
 
 ## Next Step
 
