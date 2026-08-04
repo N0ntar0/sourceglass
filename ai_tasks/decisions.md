@@ -1,4 +1,4 @@
-# Last Updated: 2026-08-05 14:40
+# Last Updated: 2026-08-05 16:00
 
 # 決定台帳
 
@@ -437,3 +437,41 @@ Phase 3 の要件として、`results` に `not-checked` が含まれるとき�
 `emptyReason.noSegment` ではなく `emptyReason.notChecked` を出す。
 
 → `copy.md` §3.5
+
+---
+
+## Phase 3 実装レビュー（2026-08-05）
+
+対象: `feature/phase3-ui` / `d0c13a6`。
+typecheck / lint / design:guard / build / Vitest 47件 / provenance E2E 6件 / app E2E 8件の
+通過を実測確認済み。**privacy E2E に画像解析経路が入り、README の主張と検証内容が初めて一致した。**
+
+### D-035 heuristic の文言は「由来」で使い分ける
+
+`basis: 'heuristic'` には2つの由来がある。
+
+1. メタデータの自由記述欄に AI ツール名があった
+2. **C2PA に記録はあるが整合性チェックに失敗した**（D-016 の降格）
+
+2 に対して「メタデータの Software 欄などに書かれていたものです」と表示するのは
+**事実として誤り**。由来は C2PA であって自由記述欄ではない。
+
+**AI 側に振れたときこそ正確に書く。** 不正確さが許されるのは、こちらに不利な方向だけではない。
+
+→ `copy.md` に `result.ai.tampered.note` を追加。見出しは `result.ai.explicit.heading` を使う
+（記録が見つかった事実は同じであるため）。設計側の文言漏れだった。
+
+### D-036 `not-checked` は `reason` で表示を分ける
+
+UI が `results` に `not-checked` が1つでもあれば「この形式は解析できません」と表示していた。
+
+現状は未対応形式のときしか発生しないため正しく見えるが、
+**v0.2 で TrustMark が `deferred` になると、毎回 `not-requested` が出る。**
+その瞬間、すべての「記録なし」結果が「この形式は解析できません」に化ける。
+
+- `reason: 'unsupported'` → `emptyReason.notChecked` を出す
+- `reason: 'not-requested'` → **出さない。** `coverage` に載せるだけ
+
+同じ理由で `coverage.skipped`（"Not applicable to this format"）も
+`not-requested` には使えない。**`reason` を捨てないこと。**
+D-029 で `reason` を型に入れたのは、まさにこの区別のためだった。

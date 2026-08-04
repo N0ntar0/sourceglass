@@ -58,12 +58,28 @@
 | `result.ai.explicit.heading` | AI生成・AI編集を示す記録が見つかりました | A record indicating AI generation or AI editing was found |
 | `result.ai.explicit.note` | C2PA の正式な来歴情報に基づく検出です。ただし、記録の内容そのものが正しいことまでは保証しません。 | Based on formal C2PA provenance data. Sourceglass does not guarantee that the record itself is truthful. |
 
-### AI_RELATED_PROVENANCE / basis = heuristic — 記号 `⚠` / 色は explicit より弱く
+### AI_RELATED_PROVENANCE / basis = heuristic — 記号 `⚠` / 強調なし（実線）
+
+**heuristic には由来の異なる2種類があり、文言を使い分ける。**
+
+**(a) メタデータの自由記述欄に AI ツール名があった場合**
 
 | key | ja | en |
 | --- | --- | --- |
 | `result.ai.heuristic.heading` | AIツールに関する記述が見つかりました | A mention of an AI tool was found |
 | `result.ai.heuristic.note` | メタデータの Software 欄などに書かれていたものです。C2PA のように検証された情報ではなく、書き換えも可能です。 | Found in metadata fields such as Software. This is not verified data like C2PA, and it can be edited. |
+
+**(b) C2PA に記録はあるが、整合性チェックに失敗している場合（D-016 の降格）**
+
+| key | ja | en |
+| --- | --- | --- |
+| 見出し | `result.ai.explicit.heading` を使う（**記録が見つかった事実は同じ**） | same |
+| `result.ai.tampered.note` | ただし、この C2PA 記録は整合性チェックに失敗しています。記録された内容は信頼できません。 | However, this C2PA record failed its integrity checks, so its contents cannot be relied upon. |
+
+> **(b) で `result.ai.heuristic.note` を使ってはいけない。**
+> 「メタデータの Software 欄などに書かれていた」は**事実として誤り**である。
+> 由来は C2PA であって自由記述欄ではない。**AI 側に振れたときこそ正確に書く。**
+> `integrity.invalid` の行はそのまま併記する。
 
 ---
 
