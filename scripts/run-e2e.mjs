@@ -51,10 +51,15 @@ async function waitForPreview(previewProcess) {
 }
 
 async function runPlaywright() {
-  const testProcess = spawn(process.execPath, [playwrightCli, "test"], {
-    cwd: repositoryRoot,
-    stdio: "inherit",
-  });
+  const requestedTests = process.argv.slice(2);
+  const testProcess = spawn(
+    process.execPath,
+    [playwrightCli, "test", ...requestedTests],
+    {
+      cwd: repositoryRoot,
+      stdio: "inherit",
+    },
+  );
   const [exitCode, signal] = await once(testProcess, "exit");
 
   if (exitCode !== 0) {

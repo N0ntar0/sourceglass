@@ -8,14 +8,12 @@ export default mergeConfig(
   baseConfig,
   defineConfig({
     build: {
+      // Keep sub-4 KiB fixtures as same-origin files; strict CSP blocks fetch(data: URLs).
       assetsInlineLimit: 0,
       rollupOptions: {
-        input: {
-          app: fileURLToPath(new URL("./index.html", import.meta.url)),
-          phase2Harness: fileURLToPath(
-            new URL("./e2e/phase2-harness.html", import.meta.url),
-          ),
-        },
+        input: fileURLToPath(
+          new URL("./e2e/phase2-harness.html", import.meta.url),
+        ),
       },
     },
   }),

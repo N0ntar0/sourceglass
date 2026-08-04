@@ -9,7 +9,7 @@ readonly PUBLIC_TESTFILES_REVISION="22beccc075707475b038d8789d0136c009e43143"
 readonly GENERATOR_CONFIG='{"claim_generator_info":[{"name":"Sourceglass fixture builder","version":"1.0"}]}'
 readonly IPTC_BASE="http://cv.iptc.org/newscodes/digitalsourcetype"
 
-for tool in c2patool exiftool ffmpeg curl sha256sum; do
+for tool in c2patool exiftool ffmpeg curl dd sha256sum; do
   if ! command -v "$tool" >/dev/null 2>&1; then
     echo "Required fixture tool is unavailable: $tool" >&2
     exit 1
@@ -114,6 +114,19 @@ head -c 300000 /dev/zero | tr '\0' X >"$work_dir/large-xmp.txt"
 cp "$work_dir/base.jpg" "$FIXTURES_DIR/broken-huge-exif.jpg"
 exiftool -overwrite_original "-XMP-dc:Description<=$work_dir/large-xmp.txt" \
   "$FIXTURES_DIR/broken-huge-exif.jpg" >/dev/null
+
+# Minimal valid ICC header followed by padding. ExifTool splits it across JPEG APP2 segments.
+head -c 300000 /dev/zero >"$work_dir/huge.icc"
+printf '%b' \
+  '\x00\x04\x93\xe0\x00\x00\x00\x00\x04\x30\x00\x00mntrRGB XYZ ' \
+  '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00acspAPPL' \
+  '\x00\x00\x00\x00TESTNONE' \
+  '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' \
+  '\x00\x00\xf6\xd6\x00\x01\x00\x00\x00\x00\xd3\x2dTEST' \
+  | dd of="$work_dir/huge.icc" bs=1 seek=0 conv=notrunc status=none
+cp "$work_dir/base.jpg" "$FIXTURES_DIR/huge-icc.jpg"
+exiftool -m -overwrite_original "-ICC_Profile<=$work_dir/huge.icc" \
+  "$FIXTURES_DIR/huge-icc.jpg" >/dev/null
 
 head -c 245000 /dev/zero | tr '\0' X >"$work_dir/within-limit-xmp.txt"
 cp "$work_dir/base.jpg" "$FIXTURES_DIR/xmp-large-within-limit.jpg"

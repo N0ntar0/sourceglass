@@ -8,7 +8,10 @@ import type {
 
 function source<T>(report: ProvenanceReport, id: string): SourceResult<T> {
   const result = report.results[id];
-  return (result ?? { status: "absent" }) as SourceResult<T>;
+  return (result ?? {
+    status: "not-checked",
+    reason: "unavailable",
+  }) as SourceResult<T>;
 }
 
 export function getC2pa(report: ProvenanceReport): SourceResult<C2paData> {

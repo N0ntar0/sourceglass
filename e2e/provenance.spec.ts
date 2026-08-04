@@ -22,11 +22,16 @@ interface HarnessReport {
   results: Record<
     string,
     | { status: "absent" }
+    | {
+        status: "not-checked";
+        reason: "unsupported" | "not-requested" | "unavailable";
+      }
     | { status: "error"; error: { code: string } }
     | {
         status: "present";
         data: {
           validation: { integrity: string; signerTrust: string };
+          manifests: Record<string, { claimGenerators: string[] }>;
         };
       }
   >;
@@ -83,6 +88,15 @@ test("official manifests keep integrity and signer trust separate", async ({
       }),
     }),
   );
+  const validC2pa = valid.results.c2pa;
+  expect(validC2pa?.status).toBe("present");
+  if (validC2pa?.status === "present") {
+    expect(
+      Object.values(validC2pa.data.manifests).some(
+        (manifest) => manifest.claimGenerators.length > 0,
+      ),
+    ).toBe(true);
+  }
 
   const invalid = await inspect(page, "officialInvalid");
   expect(invalid.results.c2pa).toEqual(
@@ -138,6 +152,10 @@ test("C2PA rules cover all actions, IPTC assertions, and algorithmicMedia", asyn
 test("a JPEG without C2PA is absent", async ({ page }) => {
   const report = await inspect(page, "noMetadata");
   expect(report.results.c2pa).toEqual({ status: "absent" });
+  expect(report.results.exif).toEqual({
+    status: "not-checked",
+    reason: "not-requested",
+  });
 });
 
 test("C2PA absent, invalid, and empty inputs remain separate paths", async ({

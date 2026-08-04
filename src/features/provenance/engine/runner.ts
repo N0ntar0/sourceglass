@@ -45,7 +45,10 @@ export async function runDetectors(
         : selected.has(detector.id);
     if (!requested) {
       coverage.skipped.push({ id: detector.id, reason: "not-requested" });
-      results[detector.id] = { status: "absent" };
+      results[detector.id] = {
+        status: "not-checked",
+        reason: "not-requested",
+      };
       continue;
     }
 
@@ -60,7 +63,7 @@ export async function runDetectors(
 
     if (!supported) {
       coverage.skipped.push({ id: detector.id, reason: "unsupported" });
-      results[detector.id] = { status: "absent" };
+      results[detector.id] = { status: "not-checked", reason: "unsupported" };
       continue;
     }
 

@@ -94,6 +94,25 @@ describe("rule evaluation", () => {
       validation_state: "Trusted",
     });
     expect(trustedState.validation.integrity).toBe("valid");
-    expect(trustedState.validation.signerTrust).toBe("not-evaluated");
+    expect(trustedState.validation.signerTrust).toBe("trusted");
+  });
+
+  it("reads both observed claim-generator fields", () => {
+    const normalized = normalizeC2paStore({
+      manifests: {
+        active: {
+          claim_generator: "make_test_images/0.16.1 c2pa-rs/0.16.1",
+          claim_generator_info: [
+            { name: "Sourceglass fixture builder", version: "1.0" },
+          ],
+          assertions: [],
+        },
+      },
+    });
+
+    expect(normalized.manifests.active?.claimGenerators).toEqual([
+      "make_test_images/0.16.1 c2pa-rs/0.16.1",
+      "Sourceglass fixture builder",
+    ]);
   });
 });

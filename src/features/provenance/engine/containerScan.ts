@@ -22,6 +22,8 @@ export type ContainerScanResult =
 
 const JPEG_APP1 = 0xe1;
 const JPEG_APP13 = 0xed;
+const JPEG_APP_MIN = 0xe0;
+const JPEG_APP_MAX = 0xef;
 const JPEG_START_OF_SCAN = 0xda;
 const JPEG_END_OF_IMAGE = 0xd9;
 
@@ -87,12 +89,15 @@ function scanJpeg(bytes: Uint8Array): ContainerScanResult {
 
     const payloadOffset = offset + 2;
     const payloadLength = segmentLength - 2;
+    if (marker >= JPEG_APP_MIN && marker <= JPEG_APP_MAX) {
+      scan.metadataBytes += payloadLength;
+    }
+
     if (marker === JPEG_APP1) {
       if (
         startsWith(bytes, payloadOffset, [0x45, 0x78, 0x69, 0x66, 0x00, 0x00])
       ) {
         scan.hasExif = true;
-        scan.metadataBytes += payloadLength;
       } else if (
         ascii(bytes, payloadOffset, Math.min(payloadLength, 40)).startsWith(
           "http://ns.adobe.com/xap/",
@@ -102,11 +107,9 @@ function scanJpeg(bytes: Uint8Array): ContainerScanResult {
         )
       ) {
         scan.hasXmp = true;
-        scan.metadataBytes += payloadLength;
       }
     } else if (marker === JPEG_APP13) {
       scan.hasIptc = true;
-      scan.metadataBytes += payloadLength;
     }
 
     offset += segmentLength;
@@ -141,9 +144,12 @@ function scanPng(bytes: Uint8Array): ContainerScanResult {
     const nextOffset = dataOffset + length + 4;
     if (nextOffset > bytes.length) return unreadable("PNG");
 
+    if (["eXIf", "iTXt", "tEXt", "zTXt", "iCCP"].includes(type)) {
+      scan.metadataBytes += length;
+    }
+
     if (type === "eXIf") {
       scan.hasExif = true;
-      scan.metadataBytes += length;
     } else if (
       type === "iTXt" &&
       ascii(bytes, dataOffset, Math.min(length, 21)).startsWith(
@@ -151,7 +157,6 @@ function scanPng(bytes: Uint8Array): ContainerScanResult {
       )
     ) {
       scan.hasXmp = true;
-      scan.metadataBytes += length;
     }
 
     offset = nextOffset;
@@ -182,12 +187,14 @@ function scanWebp(bytes: Uint8Array): ContainerScanResult {
     const nextOffset = offset + 8 + length + (length % 2);
     if (nextOffset > bytes.length) return unreadable("WebP");
 
+    if (["EXIF", "XMP ", "ICCP"].includes(type)) {
+      scan.metadataBytes += length;
+    }
+
     if (type === "EXIF") {
       scan.hasExif = true;
-      scan.metadataBytes += length;
     } else if (type === "XMP ") {
       scan.hasXmp = true;
-      scan.metadataBytes += length;
     }
 
     offset = nextOffset;

@@ -6,6 +6,10 @@ export type Verdict =
 export type SourceResult<T> =
   | { status: "present"; data: T }
   | { status: "absent" }
+  | {
+      status: "not-checked";
+      reason: "unsupported" | "not-requested" | "unavailable";
+    }
   | { status: "error"; error: { code: string; message: string } };
 
 export type SignalCategory =

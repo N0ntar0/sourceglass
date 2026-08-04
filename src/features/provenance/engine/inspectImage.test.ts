@@ -69,11 +69,35 @@ describe("inspectImage metadata path", () => {
     expect(report.verdict).toBe("NO_PROVENANCE_INFORMATION");
     expect(report.results.exif).toEqual({ status: "absent" });
     expect(report.results.xmp).toEqual({ status: "absent" });
+    expect(report.results.c2pa).toEqual({
+      status: "not-checked",
+      reason: "not-requested",
+    });
   });
 
   it("fails EXIF and XMP without parsing metadata above the limit", async () => {
     const report = await inspectImage(
       await fixtureInput("broken-huge-exif.jpg"),
+      METADATA_ONLY,
+    );
+    expect(report.coverage.failed).toEqual(["exif", "xmp"]);
+    expect(report.results.exif).toEqual(
+      expect.objectContaining({
+        status: "error",
+        error: expect.objectContaining({ code: "METADATA_TOO_LARGE" }),
+      }),
+    );
+    expect(report.results.xmp).toEqual(
+      expect.objectContaining({
+        status: "error",
+        error: expect.objectContaining({ code: "METADATA_TOO_LARGE" }),
+      }),
+    );
+  });
+
+  it("rejects a huge ICC profile before ExifReader", async () => {
+    const report = await inspectImage(
+      await fixtureInput("huge-icc.jpg"),
       METADATA_ONLY,
     );
     expect(report.coverage.failed).toEqual(["exif", "xmp"]);

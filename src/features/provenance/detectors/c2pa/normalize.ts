@@ -43,12 +43,19 @@ function normalizeAssertions(value: unknown): C2paAssertionData[] {
   });
 }
 
-function normalizeClaimGenerators(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  return value.flatMap((generator) => {
-    if (!isRecord(generator) || typeof generator.name !== "string") return [];
-    return [generator.name];
-  });
+function normalizeClaimGenerators(
+  claimGenerator: unknown,
+  claimGeneratorInfo: unknown,
+): string[] {
+  const generators = typeof claimGenerator === "string" ? [claimGenerator] : [];
+  if (!Array.isArray(claimGeneratorInfo)) return generators;
+
+  for (const generator of claimGeneratorInfo) {
+    if (!isRecord(generator) || typeof generator.name !== "string") continue;
+    generators.push(generator.name);
+  }
+
+  return [...new Set(generators)];
 }
 
 function normalizeManifests(
@@ -62,7 +69,10 @@ function normalizeManifests(
     manifests[label] = {
       label,
       title: typeof manifest.title === "string" ? manifest.title : null,
-      claimGenerators: normalizeClaimGenerators(manifest.claim_generator_info),
+      claimGenerators: normalizeClaimGenerators(
+        manifest.claim_generator,
+        manifest.claim_generator_info,
+      ),
       assertions: normalizeAssertions(manifest.assertions),
     };
   }
@@ -102,7 +112,9 @@ function normalizeValidation(store: RawManifestStore): C2paValidation {
         : state === "Valid" || state === "Trusted"
           ? "valid"
           : "unknown",
-    signerTrust: "not-evaluated",
+    // Trusted requires an explicit trust-list configuration and is unreachable in the MVP.
+    // Keeping the mapping prevents a future trust-list result from being silently discarded.
+    signerTrust: state === "Trusted" ? "trusted" : "not-evaluated",
     rawState: state,
     failures: normalizeFailures(store.validation_results),
   };
