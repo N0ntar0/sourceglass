@@ -10,6 +10,8 @@ Sourceglass — Open-source image provenance inspector の MVP 設計
 - `roadmap.md` — v0.1 / v0.2(TrustMark) / v0.3(未確定) / 将来(SynthID) の方針
 - `copy.md` — UI 文言の確定版（i18n 辞書。CodeX は言い換え禁止）
 - `fixtures.md` — テストフィクスチャ仕様
+- `design.md` — ビジュアル仕様（トークン・反転・タイポ・アイコン）
+  参照実装: https://claude.ai/code/artifact/afe097e6-a8b6-4093-8ef7-82626ca527fa
 
 役割分担: 設計 = Claude / 実装 = CodeX
 `ai_tasks/` は **gitignore せずコミットする**方針（設計判断の記録を OSS の信頼材料にする）
@@ -56,6 +58,15 @@ Sourceglass — Open-source image provenance inspector の MVP 設計
   - NOTICE に c2pa-web(MIT) / ExifReader(MPL-2.0) / C2PA 公式テストファイル(CC BY-SA) を記載
   - ExifReader は**フォーク・パッチしない方針**を NOTICE に明文化（MPL-2.0 の伝播回避）
 - README から参照している `e2e/privacy.spec.ts` / `public/_headers` は**まだ存在しない**（Phase 1・6 で作成）
+- **ビジュアルデザインを確定**（`design.md` + 参照実装 HTML）
+  - 完全モノクロ。強調は**地と図の反転**として定義（色ではなく関係なので両モードで自動成立）
+  - **反転は見出し行のみ**（ブロック全体は「エラー・危険」に読まれるため却下）
+  - 中立色はごくわずかに寒色寄り。ダークの `--fg` は純白にしない（反転が眩しくなる）
+  - **Web フォント不使用**（外部リクエスト = プライバシー違反）。システムフォントのみ
+  - **等幅は英数字のみ**。詳細テーブルに和訳ラベルを置かない
+  - 記号は**自前 SVG 3つ**（`i-warn` / `i-info` / `i-none`）。カラー絵文字化を防ぐ
+  - 実線 / 破線が4状態の唯一の構造的区別。ドロップゾーンも破線で語彙を揃える
+  - `AGENTS.md` にビジュアル規約を追記
 
 ## Next Step
 
