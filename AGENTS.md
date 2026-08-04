@@ -145,8 +145,15 @@ npm run design:guard    # 規約違反を検査（CI で実行）
 
 ### 2.4 「情報が無い」と「解析に失敗した」を混同しない
 
-`SourceResult<T>` は `present` / `absent` / `error` の3状態。
+`SourceResult<T>` は `present` / `absent` / `error` / `not-checked` の4状態。
 **この区別を潰す実装をしない。** ユーザーに見せる意味がまったく違う。
+
+- `absent` = **調べたが、無かった**
+- `not-checked` = **調べていない**（未対応形式 / 実行を要求されていない）
+
+スキップした detector を `absent` にしないこと（D-029）。
+「ウォーターマークを調べたが無かった」と「一度も見ていない」を同じ値で表すのは、
+このプロダクトが最もやってはいけないことである。
 
 C2PA では実測上、次のように分かれる（`implementation_plan.md` D5）。
 

@@ -1,4 +1,4 @@
-# Last Updated: 2026-08-05 12:00
+# Last Updated: 2026-08-05 13:20
 
 # 決定台帳
 
@@ -352,3 +352,75 @@ D-023 で上限を 256 KiB にしたので、**巨大なフィクスチャはも
   D-024 の再開条件を判定するための実測用
 - 生成物なので `build-fixtures.sh` で再現できる。**これは「再保存禁止」の対象外**
   （実物のメタデータを保存した資産ではなく、こちらが生成した合成物のため）
+
+---
+
+## Phase 2 実装レビュー（2026-08-05）
+
+対象: `feature/phase2-provenance-engine` / `6c49526`。
+Vitest 31件・Playwright 7件・typecheck・lint・design:guard・build がすべて通ることを実測確認済み。
+
+### D-029 `SourceResult` に `not-checked` を追加する
+
+runner がスキップした detector に `{ status: 'absent' }` を入れていた。
+**`absent` は「調べたが無かった」であり、「調べていない」ではない。**
+`selectors.ts` も欠損キーを `absent` に落としており、区別が二重に潰れていた。
+
+今は影響が小さいが **v0.2 で致命的**になる。TrustMark は `deferred` なので既定では実行されず、
+`results.trustmark = absent` は「ウォーターマークを調べたが無かった」という意味になる。
+実際には一度も見ていない。
+
+```ts
+| { status: "not-checked"; reason: "unsupported" | "not-requested" | "unavailable" }
+```
+
+`AGENTS.md` §2.4 の「3状態を潰すな」は**区別を減らすなという意味であり、増やすなではない。**
+
+### D-030 `validation_state: "Trusted"` は `signerTrust: 'trusted'` にマップする
+
+D-016 に矛盾する2つの記述があった（表は `'trusted'`、本文は「MVP では常に `'not-evaluated'`」）。
+**設計側の記述ミス。** 実装は本文に従い、テストで `not-evaluated` を固定していた。
+
+正しい解釈: **`Trusted` はトラストリストを設定して初めて発生する。**
+Sourceglass は設定していないので現状は到達しない。だからこそマッピングは今書いておく。
+将来トラストリストを入れたときに `Trusted` が黙って `not-evaluated` に落ちる事故を防ぐため。
+
+`signingCredential.untrusted` を `'not-trusted'` にしない点は D-016 のまま変更なし。
+
+### D-031 上限は ExifReader が読むセグメントをすべて数える
+
+`metadataBytes` が APP1（Exif / XMP）と APP13 しか数えていなかった。
+しかし `expanded: true` の ExifReader は **ICC プロファイル（APP2）も解析する**。
+ICC は数 MB になりうるため、巨大な ICC は上限をすり抜けて ExifReader に渡る。
+
+D-023 の目的は「ExifReader が噛む量を縛ること」なので、ここは穴だった。
+
+- JPEG: **APPn を全部**数える
+- PNG: `eXIf` / `iTXt` / `tEXt` / `zTXt` / `iCCP`
+- WebP: `EXIF` / `XMP ` / `ICCP`
+
+無関係な APPn まで数える分には安全側に倒れる。`huge-icc` フィクスチャを追加する。
+
+### D-032 e2e のハーネスと本番成果物を分ける
+
+`test:e2e` が `build:e2e`（エントリ追加 + `assetsInlineLimit: 0`）の成果物を使っており、
+**出荷するバイト列と別のものをテストしていた**（`index-B5nkaHvQ.js` 対 `app-9V5DH0cR.js`）。
+
+D-012 で「e2e はビルド成果物 + 本番ヘッダに対して実行する」と決めたのは、
+開発と本番の差で CSP の破綻を見逃さないためだった。前提が崩れていた。
+
+- `privacy.spec.ts` → **`vite build` の成果物**に対して実行する（出荷するものそのもの）
+- `provenance.spec.ts` → ハーネスビルドで実行してよい
+
+`assetsInlineLimit: 0` は既定 4096 バイトなので 8 MB の WASM には元々効かない。不要なら外す。
+
+### D-033 C2PA の生成ツールは両方のフィールドから取る
+
+`claim_generator_info` しか読んでいなかったが、実測 JSON（`spike_result.md`）にあるのは
+`claim_generator`（文字列）で、`claim_generator_info` は存在しない。
+**公式フィクスチャでは生成ツールが常に空になる。**
+
+テストが通っていたのは `claimGenerators` を検証するテストが1つも無かったため。
+**「実測 JSON を見て実装する」という Phase 0 の原則が、ここだけ抜けていた。**
+
+両方を読み、アサーションを追加する。

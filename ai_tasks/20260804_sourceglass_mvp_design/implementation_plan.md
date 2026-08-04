@@ -150,13 +150,18 @@ export type C2paErrorCode =
 | --- | --- | --- |
 | `validation_state: "Invalid"` | `'invalid'` | `'not-evaluated'` |
 | `validation_state: "Valid"` | `'valid'` | `'not-evaluated'` |
-| `validation_state: "Trusted"` | `'valid'` | `'trusted'` |
+| `validation_state: "Trusted"` | `'valid'` | `'trusted'` ← **MVP では到達しないが必ず実装する（D-030）** |
 | `validation_state: null` | `'unknown'` | `'not-evaluated'` |
 
 **`signingCredential.untrusted` を `'not-trusted'` にマップしないこと。**
 Sourceglass が意図的にトラストリストを設定していないだけであり、
-「この署名者は信頼できない」は言い過ぎになる。**MVP では常に `'not-evaluated'`。**
-生のコードは詳細タブにだけ出す。
+「この署名者は信頼できない」は言い過ぎになる。生のコードは詳細タブにだけ出す。
+
+> **D-030 による明確化:** 「MVP では常に `'not-evaluated'`」と書いていたのは
+> **`Valid` と `Invalid` の場合の話**であり、`Trusted` のマッピングを省く意味ではない。
+> `Trusted` はトラストリストを設定して初めて発生するので MVP では到達しないが、
+> **マッピングは今実装する。** 将来トラストリストを入れたときに
+> `Trusted` が黙って `'not-evaluated'` に落ちる事故を防ぐため。
 
 #### 帰結（ルールエンジンに直接効く）
 
@@ -454,7 +459,9 @@ export type Verdict =
 export type SourceResult<T> =
   | { status: 'present'; data: T }
   | { status: 'absent' }
-  | { status: 'error'; error: { code: string; message: string } };
+  | { status: 'error'; error: { code: string; message: string } }
+  /** ★ D-029: 「調べていない」。absent（調べたが無かった）と絶対に混同しない */
+  | { status: 'not-checked'; reason: 'unsupported' | 'not-requested' | 'unavailable' };
 
 export type SignalCategory = 'ai-generation' | 'ai-editing' | 'provenance' | 'software';
 
