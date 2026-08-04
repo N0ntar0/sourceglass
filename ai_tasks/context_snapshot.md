@@ -1,8 +1,8 @@
-# Last Updated: 2026-08-05 02:10
+# Last Updated: 2026-08-05 10:00
 
 ## Current Topic
 
-Sourceglass — Phase 0 完了・設計レビュー完了。**Phase 1 に進んでよい。**
+Sourceglass — **Phase 1（プロジェクト基盤）完了。Phase 2 は未着手。**
 
 参照フォルダ: `ai_tasks/20260804_sourceglass_mvp_design/`
 
@@ -26,6 +26,20 @@ Sourceglass — Phase 0 完了・設計レビュー完了。**Phase 1 に進ん�
 - 設計判断が必要になったら、設計担当へそのまま渡せるプロンプトを作成する
 
 ## Last Actions
+
+### Phase 1 プロジェクト基盤（2026-08-05）
+
+- Node 24 / Vite / TypeScript strict / React 19 の最小アプリを構築
+- 承認済みの直接依存だけを導入し、C2PA と ExifReader は解析実装に備えてバージョンを固定
+- `public/_headers` を CSP の唯一の定義元とし、Vite の開発・プレビューにも同じ CSP を適用
+- `@vitejs/plugin-basic-ssl` で開発・プレビューを HTTPS 化
+- Playwright で、本番ビルドの CSP 完全一致と初期表示時の外部通信0件を実測
+- Vitest、ESLint、Prettier、Node 24 の GitHub Actions CI を整備
+- `design:guard` / `design:lock` を package scripts に登録し、保護対象3ファイルは未変更
+- Phase 0 の成果を `spike_result.md` に残し、役目を終えた `spike/` を削除
+- 検証結果: `typecheck` / `lint` / Vitest / `design:guard` / build / Playwright はすべて成功
+
+### Phase 0 と設計レビュー
 
 - Phase 0 の技術検証スパイクが完了（実装担当）。9項目中8項目を実測、1項目は一部未確認
 - **設計担当が spike_result.md をレビューし、4つの論点を決定**
@@ -73,19 +87,17 @@ Sourceglass — Phase 0 完了・設計レビュー完了。**Phase 1 に進ん�
 
 ## Next Step
 
-**Phase 1（プロジェクト基盤）に進んでよい。**
+**Phase 2 にはまだ着手しない。最初にフィクスチャ整備を完了する。**
 
-1. Phase 1: Vite + TS + React の土台、HTTPS 開発環境、`public/_headers`、
-   `package.json` に `design:guard` / `design:lock` を追加、CI
-2. Phase 2 着手前に `fixtures.md` のフィクスチャを揃える（remote-only fixture を含む）
-3. Phase 2 の完了条件に D1・D3・D6 の検証が入っている。飛ばさないこと
+1. `fixtures.md` に従って Phase 2 用フィクスチャを揃える（remote-only fixture を含む）
+2. ライセンス・再配布条件とハッシュを確認し、再保存・リサイズせず配置する
+3. フィクスチャ整備のレビュー後に Phase 2 解析エンジンへ進む
+4. Phase 2 の完了条件に D1・D3・D6 の検証が入っている。飛ばさないこと
 
-`spike/` は Phase 1 の土台ができた時点で削除してよい（成果は `spike_result.md` に記録済み）。
+Phase 1 の最小 UI は製品名と確定済みタグラインのみ。Phase 3 の UI は未実装。
 
 ## Resume Prompt
 
-Sourceglass の Phase 1 です。`AGENTS.md` と
-`ai_tasks/20260804_sourceglass_mvp_design/implementation_plan.md`（特に「Phase 0 の決定事項」
-D1〜D6）を読んでください。Phase 0 の実測と設計レビューは完了しており、
-remote fetch・Worker/CSP・二重 Worker・integrity/trust の4点はすべて決定済みです。
-再検討せず、Phase 1 の実装に進んでください。
+Sourceglass は Phase 1 のプロジェクト基盤まで完了しています。`AGENTS.md`、
+`ai_tasks/context_snapshot.md`、`fixtures.md`、`implementation_plan.md` の D1〜D6 と Phase 2 を読み、
+解析エンジンへ進む前提として Phase 2 用フィクスチャの整備とレビューから再開してください。
