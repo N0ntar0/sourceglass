@@ -1,4 +1,4 @@
-# Last Updated: 2026-08-05 13:20
+# Last Updated: 2026-08-05 14:40
 
 # 決定台帳
 
@@ -424,3 +424,16 @@ D-012 で「e2e はビルド成果物 + 本番ヘッダに対して実行する�
 **「実測 JSON を見て実装する」という Phase 0 の原則が、ここだけ抜けていた。**
 
 両方を読み、アサーションを追加する。
+
+### D-034 UI は `not-checked` を「記録が無い」と表示してはならない
+
+D-029 の修正で `results` は真実を持つようになったが、**verdict は3種のままなので、
+未対応形式では `NO_PROVENANCE_INFORMATION` になる**（`withMeaningfulData` が空のため）。
+
+「この画像については何も判断できません」は正しいが、
+**「来歴の記録が残っていませんでした」は正しくない。** 記録の有無を見ていない。
+
+Phase 3 の要件として、`results` に `not-checked` が含まれるときは
+`emptyReason.noSegment` ではなく `emptyReason.notChecked` を出す。
+
+→ `copy.md` §3.5

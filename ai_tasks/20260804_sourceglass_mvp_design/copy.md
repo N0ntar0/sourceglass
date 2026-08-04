@@ -162,6 +162,13 @@ Sourceglass が意図的にトラストリストを設定していないだけ�
 | `emptyReason.noSegment` | このファイルには EXIF / XMP / C2PA の領域が存在しません | This file contains no EXIF, XMP, or C2PA section |
 | `emptyReason.technicalOnly` | EXIF は {n} 項目ありますが、すべて画像の技術情報です | EXIF has {n} entries, but all of them are technical image data |
 | `emptyReason.tooLarge` | メタデータ領域が大きすぎるため、読み取りを中止しました（上限 {limit}）。 | The metadata section was too large to read (limit {limit}). |
+| `emptyReason.notChecked` | この形式は解析できないため、調べていません。 | This format cannot be inspected, so it was not checked. |
+
+> **`not-checked` のときに `emptyReason.noSegment` を出してはいけない。**
+> 未対応形式などで detector が動かなかった場合、`results` は `absent` ではなく
+> `not-checked` になる（D-029）。**「調べたが無かった」ではなく「調べていない」。**
+> verdict は `NO_PROVENANCE_INFORMATION` になるが、
+> **理由として「記録が残っていない」と書いてはいけない。** 記録の有無を見ていない。
 
 > **`emptyReason.tooLarge` のときに `emptyReason.noSegment` を出してはいけない。**
 > 領域は存在した。読まなかっただけである。この2つを混同すると
