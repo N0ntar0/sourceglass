@@ -215,6 +215,7 @@ Sourceglass が意図的にトラストリストを設定していないだけ�
 
 ```
 sourceglass/
+├── .gitignore
 ├── index.html
 ├── package.json
 ├── tsconfig.json
@@ -282,6 +283,13 @@ detectors/c2pa/
 - devDependencies: `vite`, `@vitejs/plugin-react`, `typescript`, `vitest`,
   `@playwright/test`, `eslint` + `typescript-eslint`, `prettier`,
   **`@vitejs/plugin-basic-ssl`**（Phase 0 の D2 で追加承認。開発を HTTPS にするため）
+- 型定義（承認済み。§依存ポリシーにより `@types/*` は個別承認不要）:
+  `@types/react@19`, `@types/react-dom@19`, **`@types/node@24`**
+- Phase 3 用に事前承認済み（D-021）: `eslint-plugin-react-hooks`
+
+> **`@types/node` のメジャーは、実際に使う Node のメジャーに合わせること。**
+> Phase 0 の実測環境は Node v24.13.0。**CI の Node も 24 に固定する。**
+> ここがズレると型エラーが出たり出なかったりする再現性の低い状態になる。
 
 `package.json` の scripts に以下を追加する（デザインガードは設計担当が用意済み）:
 
@@ -289,6 +297,41 @@ detectors/c2pa/
 "design:guard": "node scripts/design-guard.mjs",
 "design:lock": "node scripts/design-guard.mjs --write"
 ```
+
+### `.gitignore`（承認済み・この内容で作成する）
+
+```gitignore
+# 依存とビルド成果物
+node_modules/
+dist/
+
+# テスト出力
+playwright-report/
+test-results/
+coverage/
+
+# 秘密情報（このリポジトリは public。事故を仕組みで止める）
+.env
+.env.*
+*.pem
+
+# OS
+.DS_Store
+```
+
+**意図的に除外しないもの**（勝手に足さないこと）:
+
+| パス | 理由 |
+| --- | --- |
+| `ai_tasks/` | 設計判断の記録を公開する方針 |
+| `fixtures/` | フィクスチャはコミットする（`fixtures.md`） |
+| `.vscode/` | 将来 `extensions.json` などを共有する可能性がある |
+
+`.env` 系を入れているのは、**今使う予定が無くても事故で入りうるから**。
+public リポジトリでは commit した時点で漏洩が確定する。
+`*.pem` は、開発を HTTPS にしたことで手動生成の証明書が置かれる可能性があるため。
+
+### CSP
 
 `public/_headers` は **D2 の確定 CSP** を使う。`/*` に当てること
 （Worker スクリプトのレスポンスにも CSP が乗る必要がある）。
@@ -299,6 +342,105 @@ detectors/c2pa/
 ## Phase 2 — 解析エンジン（2〜2.5人日）★ UI より先に完成させる
 
 UI を一切書かずに、Vitest だけで完結させる。
+
+### 2.0 先に境界を作る（Phase 1 レビューの決定・D-019 / D-020）
+
+**エンジンを1行も書く前にこれをやる。** 後から入れると、既に混入した依存を剥がす作業になる。
+
+`AGENTS.md` §2.1 の「解析エンジンは React / DOM に依存しない」は、
+現状**規約でしか守られていない**。デザインを `design-guard` で守ったのと同じ考え方で、
+機械的に落とせるようにする。**規約は破られるが、CI は破られない。**
+
+**① eslint で import を禁止する**
+
+```js
+{
+  files: ['src/features/provenance/**/*.ts'],
+  rules: {
+    'no-restricted-imports': ['error', {
+      patterns: [
+        { group: ['react', 'react-dom', 'react/*', 'react-dom/*'],
+          message: '解析エンジンは UI に依存しない（AGENTS.md §2.1）。' },
+        { group: ['../../inspector/*', '**/features/inspector/*'],
+          message: 'provenance → inspector の逆方向 import は禁止。' },
+        { group: ['../../platform/*', '**/platform/*'],
+          message: 'DOM 依存は注入する。platform を直接 import しない。' },
+      ],
+    }],
+  },
+}
+```
+
+**② Vitest の既定環境を `node` のままにする**
+
+`features/provenance/` のテストは DOM が存在しない環境で走るので、
+**DOM 依存が混入した瞬間にテストが落ちる。** ①と二重に境界を守れる。
+
+- 既定環境を `jsdom` に変えない
+- UI テストが必要になったら、そのファイルにだけ `// @vitest-environment jsdom` を書く
+- Phase 1 の `App.test.tsx` が `renderToStaticMarkup` を使っているのはこの方針と整合している
+
+**③ 境界が効いていることをテストする**
+
+`features/provenance/` 配下に `import { useState } from 'react'` を書いた状態で
+`npm run lint` が落ちることを一度手で確認し、確認したことを報告に含める
+（デザインガードで同じ確認をしたのと同じ理由。**ガードは動作確認しないと飾りになる**）。
+
+### 2.0.1 メタデータの上限とコンテナ走査（Phase 2 レビューの決定・D-022〜D-028）
+
+実測: 13.3 MB の通常 JPEG は **0.1〜1.5 ms**、11.0 MB の巨大 XMP JPEG は **2,856〜3,765 ms**。
+**遅いのはファイルサイズではなくメタデータ量。**
+
+```
+ExifReader を呼ぶ前に containerScan(bytes) を通す
+  → セグメント一覧 + 合計メタデータバイト数
+  → 上限超過なら ExifReader を呼ばない
+```
+
+`containerScan` は JPEG の APPn マーカー / PNG のチャンク / WebP の RIFF チャンクを
+長さフィールドで飛ばしながら数えるだけ。マイクロ秒で終わる。
+**`copy.md` §3.5 の「領域が無い」/「領域はあるが技術情報のみ」の出し分けにも同じ走査を使う。**
+
+```ts
+/** EXIF + XMP + IPTC の合計。C2PA は含まない（c2pa-web が自前 Worker で扱う） */
+export const METADATA_BYTES_LIMIT = 262_144; // 256 KiB
+
+export type MetadataErrorCode =
+  | 'METADATA_TOO_LARGE'      // 上限超過。ExifReader を呼ばずに中止する
+  | 'METADATA_READ_TIMEOUT'   // 定義のみ。Worker 実装を入れるまで発生しない
+  | 'METADATA_PARSE_FAILED'
+  | 'CONTAINER_UNREADABLE';
+```
+
+- セグメント走査ができないコンテナ（AVIF / HEIC）は、**ファイルサイズ 8 MiB** を粗い代替上限とする
+- 上限超過は `SourceResult.error`（`METADATA_TOO_LARGE`）+ `coverage.failed` に `exif` と `xmp`
+- **`emptyReason.noSegment` を出してはいけない。** 領域は存在した。読まなかっただけ
+
+**`MetadataReader` ポート（D-025）**
+
+```ts
+// features/provenance/ports/metadataReader.ts
+export interface MetadataReader {
+  read(bytes: ArrayBuffer): Promise<RawMetadata>;
+}
+```
+
+- v0.1 の実装は **inline**（ExifReader を直接呼ぶ）。`provenance/` 内に置くので CLI / npm 単体でも動く
+- 将来 Worker 化するときは `platform/` に実装を足して runner へ注入する。**エンジン側の変更はゼロ**
+- **`timeoutMs` を引数に入れない。** inline では同期処理を中断できず、受け取っても守れない。
+  **守れない約束を型に書かない**
+
+**自由記述値の切り詰め（D-027）**
+
+- 1値あたり **512 文字**で切り詰め、`{ truncated: true, originalLength: n }` を持たせる
+- 配列は最大 **50 要素**
+- 切り詰めた事実を UI に出す（`copy.md` の `value.truncated`）。原文は保持しない
+
+**Worker 化を再開する条件（D-024）**
+
+> 上限ぎりぎり（メタデータ約 250 KB）の `xmp-large-within-limit.jpg` で
+> **50 ms を超える停止が観測されたら、EXIF/XMP detector を Worker 化する。**
+> 256 KiB という上限値は外挿なので、**実測して裏を取ること。**
 
 ### 2.1 型定義（`types/index.ts`）
 

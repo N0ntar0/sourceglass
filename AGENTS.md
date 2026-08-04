@@ -11,7 +11,9 @@
 
 | ファイル | 内容 |
 | --- | --- |
-| `ai_tasks/context_snapshot.md` | **最初にこれを読む。** 現在地・直近の作業・次の一手 |
+| `ai_tasks/README.md` | **最初にこれを読む。** ドキュメントの索引と、どこに何を書くかのルール |
+| `ai_tasks/context_snapshot.md` | 現在地・直近の作業・次の一手 |
+| `ai_tasks/decisions.md` | **決定台帳。「なぜそうなっているのか」の唯一の入口** |
 | `ai_tasks/20260804_sourceglass_mvp_design/task.md` | 要件・技術調査結果・技術選定の根拠 |
 | `ai_tasks/20260804_sourceglass_mvp_design/implementation_plan.md` | Phase 0〜6 の作業指示 |
 | `ai_tasks/20260804_sourceglass_mvp_design/roadmap.md` | v0.1 / v0.2 / v0.3 の方針 |
@@ -195,6 +197,13 @@ MVP はトラストリストを設定しないので `signerTrust` は常に `'n
 2. ライセンスが MIT 本体と両立するか（MPL-2.0 は無改変利用なら可）
 3. メンテナンスされているか
 
+**例外: `@types/*`（DefinitelyTyped の型定義のみのパッケージ）は個別承認を不要とする。**
+ビルド時に消えるため、上記3基準のどれにも触れないため。ただし:
+
+- 必ず `devDependencies` に置く
+- 実行時コードを含まないことを確認する
+- `@types/node` のメジャーは、実際に使う Node のメジャーに合わせる（CI の Node も固定する）
+
 ### C2PA の API を推測で書かない
 
 `@contentauth/c2pa-web` の型・JSON 構造は、**必ず実物を確認してから実装する。**
@@ -232,9 +241,16 @@ npm run typecheck && npm run test && npm run design:guard && npm run build
 
 ## 6. 作業ログ（ai_tasks プロトコル）
 
+**どこに何を書くかは `ai_tasks/README.md` §3 が正本。** 要点:
+
 - コードを変更したら、**同じ作業の中で `ai_tasks/context_snapshot.md` を更新する**
-- `context_snapshot.md` は常に上書き。過去版を残さない。トピック別に分割しない
-- 含める内容: Current Topic / Last Actions / Next Step / Resume Prompt
+- `context_snapshot.md` は**現在地だけ。常に上書き。60行以内**に保つ。
+  伸びてきたら変更履歴になっている。`decisions.md` へ逃がすこと
+- 含める内容: Current Topic / Working Agreement / Last Actions / Next Step / Resume Prompt
+- **判断・選択・却下した案は `ai_tasks/decisions.md` に1エントリ追記する。**
+  決定を黙って書き換えない。覆すなら新しい番号で追記し、古い方に取り消し線を引く
+- **同じ根拠を2箇所に書かない。** 片方が必ず腐る。
+  `decisions.md` は「何を・なぜ・詳細はどこか」だけを持ち、実装の詳細は仕様側に置いてリンクする
 - 各ファイル冒頭の `# Last Updated: YYYY-MM-DD HH:mm` を更新する
 - Phase 0 のスパイク結果は `spike_result.md` に**実際の JSON とログを貼る**。要約で済ませない
 

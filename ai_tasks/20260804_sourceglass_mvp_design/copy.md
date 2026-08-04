@@ -161,6 +161,20 @@ Sourceglass が意図的にトラストリストを設定していないだけ�
 | `whyEmpty.item.resave` | 「画像を保存」での再エンコード | Re-encoding via "save image" |
 | `emptyReason.noSegment` | このファイルには EXIF / XMP / C2PA の領域が存在しません | This file contains no EXIF, XMP, or C2PA section |
 | `emptyReason.technicalOnly` | EXIF は {n} 項目ありますが、すべて画像の技術情報です | EXIF has {n} entries, but all of them are technical image data |
+| `emptyReason.tooLarge` | メタデータ領域が大きすぎるため、読み取りを中止しました（上限 {limit}）。 | The metadata section was too large to read (limit {limit}). |
+
+> **`emptyReason.tooLarge` のときに `emptyReason.noSegment` を出してはいけない。**
+> 領域は存在した。読まなかっただけである。この2つを混同すると
+> 「調べた結果 何も無かった」と「調べていない」が入れ替わる（`AGENTS.md` §2.4）。
+> `coverage.failed`（読み取れなかったもの）を**必ず併記する**。
+
+### 値を切り詰めたとき（D-027）
+
+| key | ja | en |
+| --- | --- | --- |
+| `value.truncated` | （以下省略・全 {n} 文字） | (truncated, {n} characters total) |
+
+**切り詰めた事実を隠さないこと。** 隠すとユーザーは「全部見た」と誤解する。
 
 ### 表示例
 

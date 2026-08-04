@@ -18,4 +18,28 @@ export default tseslint.config(
       "@typescript-eslint/no-explicit-any": "error",
     },
   },
+  {
+    files: ["src/features/provenance/**/*.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["react", "react-dom", "react/*", "react-dom/*"],
+              message: "解析エンジンは UI に依存しない（AGENTS.md §2.1）。",
+            },
+            {
+              group: ["../../inspector/*", "**/features/inspector/*"],
+              message: "provenance → inspector の逆方向 import は禁止。",
+            },
+            {
+              group: ["../../platform/*", "**/platform/*"],
+              message: "DOM 依存は注入する。platform を直接 import しない。",
+            },
+          ],
+        },
+      ],
+    },
+  },
 );

@@ -98,7 +98,22 @@ MVP の「トラスト評価はしない」表示パスもそのままテスト�
 | `broken-truncated` | 途中で切ったファイル |
 | `broken-not-image` | テキストファイルを `.jpg` にリネーム |
 | `broken-zero-byte` | 0 バイト |
-| `broken-huge-exif` | 異常に大きい EXIF（DoS 耐性） |
+| `broken-huge-exif` | **メタデータ約 300 KB**（`METADATA_BYTES_LIMIT` = 256 KiB を超える）|
+
+> **`broken-huge-exif` を 11 MB で作らないこと（D-028）。**
+> 目的は上限を超えることであり、巨大であることではない。
+> `fixtures/` はコミットするので、**巨大な生成物は public リポジトリの履歴に永久に残る。**
+> git の履歴は消せない。
+
+### 性能測定用
+
+| id | 内容 |
+| --- | --- |
+| `xmp-large-within-limit` | **メタデータ約 250 KB**（上限のすぐ内側）。D-024 の再開条件を判定する実測用 |
+
+`performance-large.jpg`（13.3 MB）は**コミットしない**。測定結果は
+`20260805_sourceglass_phase2/measurement.md` に記録済みで、
+D-023 で上限を入れたため巨大ファイルの常設は不要になった。
 
 ---
 
