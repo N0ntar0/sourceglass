@@ -1,4 +1,4 @@
-# Last Updated: 2026-08-05 10:12
+# Last Updated: 2026-08-05 10:22
 
 # Sourceglass Phase 6 — デプロイ検証
 
@@ -22,7 +22,7 @@ $ curl -sI https://develop.sourceglass.pages.dev/assets/c2pa_worker-DXNlPeXm.js 
 content-security-policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
 ```
 
-## 本番 URL の状態
+## 本番デプロイ前の状態
 
 ```console
 $ curl -sI https://sourceglass.pages.dev/ | grep -i content-security-policy
@@ -41,6 +41,22 @@ cf-ray: a261f1d03e0b0795-KIX
 alt-svc: h3=":443"; ma=86400
 ```
 
+## 本番 HTML レスポンスの CSP
+
+```console
+$ curl -sI https://sourceglass.pages.dev/ | grep -i content-security-policy
+content-security-policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+```
+
+## 本番 C2PA Worker レスポンスの CSP
+
+本番の配信 JavaScriptから特定した Worker は `assets/c2pa_worker-DXNlPeXm.js`。
+
+```console
+$ curl -sI https://sourceglass.pages.dev/assets/c2pa_worker-DXNlPeXm.js | grep -i content-security-policy
+content-security-policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+```
+
 ## 結果
 
-develop デプロイでは HTML と C2PA Worker の両方に `public/_headers` と同じ CSP が返り、`/*` が Worker にも適用されることを実測できた。本番 URL 候補は 404 で CSP が返っていないため、本番デプロイの検証は未完了。
+develop と本番の双方で、HTML と C2PA Worker に `public/_headers` と同じ CSP が返った。`/*` が Worker にも適用されることを実測できた。本番デプロイの CSP 検証は完了。
