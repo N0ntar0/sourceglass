@@ -1,11 +1,11 @@
-# Last Updated: 2026-08-05 20:10
+# Last Updated: 2026-08-05 10:12
 
 > このファイルは**現在地だけ**を書く。過去は残さない。60行以内に保つ。
 > 決定の履歴は [`decisions.md`](./decisions.md)、読み方は [`README.md`](./README.md)。
 
 ## Current Topic
 
-Sourceglass — **Phase 6 ローカル準備完了。本番デプロイの人間操作待ち。**
+Sourceglass — **Phase 6 の develop デプロイ検証完了。本番デプロイ待ち。**
 
 - 作業ブランチ: `feature/phase3-ui`
 - 統合先: `develop`（GitHub のデフォルトブランチ = PR のベース。D-039）
@@ -24,17 +24,16 @@ Sourceglass — **Phase 6 ローカル準備完了。本番デプロイの人間
 - 現行 build で検査通過。`unexpected.example.invalid` の一時投入で exit 1 を実測後、削除済み
 - typecheck / lint / design:guard / build / Vitest 56件 /
   provenance E2E 6件 / app E2E 14件 すべて通過
-- Cloudflare CLI・認証用環境変数はこの環境に無く、アカウント操作なしではデプロイ不可
-- 本番 URL 未確定のため CSP は**未実測**。`deploy_verification.md` はまだ作成していない
+- Cloudflare Pages `https://develop.sourceglass.pages.dev/` へのデプロイ完了
+- develop の HTML と `assets/c2pa_worker-DXNlPeXm.js` のレスポンスで同一 CSP を実測
+- `https://sourceglass.pages.dev/` は HTTP 404 で CSP なし。本番検証は未完了
+- 生の curl 出力を `ai_tasks/20260805_sourceglass_phase6/deploy_verification.md` に記録
 
 ## Next Step
 
-1. feature ブランチを push し、`develop` へ統合する（main には触れない）
-2. Cloudflare Pages を production branch `develop`、build `npm run build`、output `dist`、
-   `NODE_VERSION=24` で作成する
-3. 発行された本番 URL を実装担当へ渡す
-4. HTML と C2PA Worker の CSP を curl で実測し、実出力を `deploy_verification.md` に記録する
-5. 実測が両方通るまで v0.1 リリース可とは判断しない
+1. Phase 6 の実測記録と snapshot をコミットし、feature ブランチを push する
+2. 人間が main へマージして本番をデプロイする（v0.1 タグも人間が実施する）
+3. 本番 HTML と C2PA Worker の CSP を再実測してリリース判断を確定する
 
 ## 未対応（軽微・任意のまま）
 
@@ -45,5 +44,5 @@ Sourceglass — **Phase 6 ローカル準備完了。本番デプロイの人間
 
 ## Resume Prompt
 
-Sourceglass Phase 6 は CI 準備済みで Cloudflare Pages の人間操作待ちです。
-本番 URL を受け取り、HTML と Worker の CSP を curl で実測して生ログを記録してください。
+Sourceglass Phase 6 は develop デプロイの HTML と C2PA Worker で CSP を実測済みです。
+本番は未デプロイのため、人間の main マージ後に本番 URL で同じ実測を行ってください。
