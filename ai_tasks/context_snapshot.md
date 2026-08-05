@@ -1,11 +1,11 @@
-# Last Updated: 2026-08-05 10:12
+# Last Updated: 2026-08-05 10:22
 
 > このファイルは**現在地だけ**を書く。過去は残さない。60行以内に保つ。
 > 決定の履歴は [`decisions.md`](./decisions.md)、読み方は [`README.md`](./README.md)。
 
 ## Current Topic
 
-Sourceglass — **Phase 6 の develop デプロイ検証完了。本番デプロイ待ち。**
+Sourceglass — **Phase 6 完了。本番 CSP の実測・記録まで完了。**
 
 - 作業ブランチ: `feature/phase3-ui`
 - 統合先: `develop`（GitHub のデフォルトブランチ = PR のベース。D-039）
@@ -26,14 +26,14 @@ Sourceglass — **Phase 6 の develop デプロイ検証完了。本番デプロ
   provenance E2E 6件 / app E2E 14件 すべて通過
 - Cloudflare Pages `https://develop.sourceglass.pages.dev/` へのデプロイ完了
 - develop の HTML と `assets/c2pa_worker-DXNlPeXm.js` のレスポンスで同一 CSP を実測
-- `https://sourceglass.pages.dev/` は HTTP 404 で CSP なし。本番検証は未完了
+- `origin/main` のデプロイ後、`https://sourceglass.pages.dev/` の HTML と同 Worker でも CSP を実測
 - 生の curl 出力を `ai_tasks/20260805_sourceglass_phase6/deploy_verification.md` に記録
 
 ## Next Step
 
-1. Phase 6 の実測記録と snapshot をコミットし、feature ブランチを push する
-2. 人間が main へマージして本番をデプロイする（v0.1 タグも人間が実施する）
-3. 本番 HTML と C2PA Worker の CSP を再実測してリリース判断を確定する
+1. Phase 6 の最終実測記録と snapshot をコミットして push する
+2. 記録を develop / main へ反映する
+3. CI 通過を確認後、人間が v0.1 タグを作成する（D-039）
 
 ## 未対応（軽微・任意のまま）
 
@@ -44,5 +44,5 @@ Sourceglass — **Phase 6 の develop デプロイ検証完了。本番デプロ
 
 ## Resume Prompt
 
-Sourceglass Phase 6 は develop デプロイの HTML と C2PA Worker で CSP を実測済みです。
-本番は未デプロイのため、人間の main マージ後に本番 URL で同じ実測を行ってください。
+Sourceglass Phase 6 は本番 HTML と C2PA Worker の CSP 実測・記録まで完了しています。
+最終記録を develop / main へ反映し、CI 通過後に人間が v0.1 タグを作成してください。
