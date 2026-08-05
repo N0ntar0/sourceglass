@@ -195,9 +195,26 @@ Sourceglass が意図的にトラストリストを設定していないだけ�
 
 | key | ja | en |
 | --- | --- | --- |
-| `value.truncated` | （以下省略・全 {n} 文字） | (truncated, {n} characters total) |
+| `value.truncated` | **英語のまま**（下記参照） | (truncated, {n} characters total) |
 
 **切り詰めた事実を隠さないこと。** 隠すとユーザーは「全部見た」と誤解する。
+
+### 日本語版でも英語のままにするキー
+
+`design.md` §5 の「**等幅ブロックに日本語を入れない**」が優先される。
+以下は等幅（計測器パート）にのみ現れるため、`ja` でも英語を入れる。
+
+```
+value.truncated
+section.provenance / section.result
+details.c2pa / details.exif / details.xmp
+details.field / details.value / details.evidence
+status.absent / status.notChecked / status.error
+```
+
+**Summary の値（`summary.found` =「検出」など）は日本語で良い。**
+`.summary__val` は等幅だが、2〜4文字の短い語なので破綻しない。
+この規則が本当に守りたいのは、長い英語のフィールド名と値が並ぶ**詳細テーブル**である。
 
 ### 表示例
 
