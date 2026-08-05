@@ -1,0 +1,25 @@
+{
+  "claim_generator_info": [
+    {
+      "name": "Sourceglass fixture builder",
+      "version": "1.0"
+    }
+  ],
+  "assertions": [
+    {
+      "label": "c2pa.actions.v2",
+      "data": {
+        "actions": [
+          {
+            "action": "c2pa.created",
+            "digitalSourceType": "http://cv.iptc.org/newscodes/digitalsourcetype/digitalCapture"
+          },
+          {
+            "action": "c2pa.edited",
+            "digitalSourceType": "http://cv.iptc.org/newscodes/digitalsourcetype/trainedAlgorithmicMedia"
+          }
+        ]
+      }
+    }
+  ]
+}

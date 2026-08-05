@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm run test
+
+      - name: Design guard
+        run: npm run design:guard
+
+      - name: Build
+        run: npm run build
+
+      - name: Check build for unexpected external origins
+        shell: bash
+        run: |
+          # These origins are non-network identifiers embedded by React and metadata formats.
+          # Runtime requests are checked separately by the privacy Playwright tests.
+          allowed_origins='^https?://(cv\.iptc\.org|fallback\.namespace|ns\.adobe\.com|purl\.org|react\.dev|www\.w3\.org)$'
+          found_origins="$(grep -RIhoE 'https?://[[:alnum:].:-]+' dist | sort -u || true)"
+          unexpected_origins=""
+
+          if [[ -n "$found_origins" ]]; then
+            unexpected_origins="$(printf '%s\n' "$found_origins" | grep -Ev "$allowed_origins" || true)"
+          fi
+
+          if [[ -n "$unexpected_origins" ]]; then
+            printf 'Unexpected external origins found in dist/:\n%s\n' "$unexpected_origins" >&2
+            exit 1
+          fi
+
+          printf 'No unexpected external origins found in dist/.\n'
+          printf 'Known non-network origins in dist/:\n%s\n' "$found_origins"
+
+      - name: End-to-end tests
+        run: npm run test:e2e

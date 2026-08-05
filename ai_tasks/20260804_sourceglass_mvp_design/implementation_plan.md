@@ -7,12 +7,174 @@
 想定工数: **合計 6〜7.5 人日**（Phase 0 を飛ばさないこと）
 
 > **v0.2（TrustMark = 画素層のウォーターマーク検出）が確定しているため、
-> v0.1 の時点で 4 つの抽象を先に入れる。** 詳細は [`roadmap.md`](./roadmap.md)。
+> v0.1 の時点で 3 つの抽象を先に入れる。** 詳細は [`roadmap.md`](./roadmap.md)。
 >
 > 1. **Detector レジストリ** — 固定の `c2pa/exif/xmp` フィールドをやめ、登録制にする
 > 2. **`AnalysisInput`** — 「バイト列」と「画素」を遅延・分離して供給する
 > 3. **`coverage`** — 何を検査したかを Report に持たせる（免責文言の強さを連動させる）
-> 4. **Web Worker 上で実行** — ONNX 推論は秒単位でメインスレッドを止めるため
+>
+> 当初4つ目に予定していた **Worker 化は v0.1 では実装しない**（Phase 0 の実測による。§ Phase 0 の決定事項）。
+> ただし「いつでも Worker 化できる」制約（structured-clone 可能・DOM 非依存）は維持する。
+
+---
+
+## Phase 0 の決定事項（実測にもとづく確定・2026-08-05）
+
+実測結果は [`spike_result.md`](./spike_result.md)。以下は**決定**であり、再検討しない。
+
+### D1. remote manifest fetch — 保証は CSP に置く
+
+`remoteManifestFetch` は WASM には存在するが c2pa-web 0.13.1 の公開型には無い。
+実行時に受理されたが、**受理されたことは効いていることの証明ではない。**
+未公開設定に「画像が外に出ない」という保証を負わせない。
+
+| 層 | 手段 | 役割 |
+| --- | --- | --- |
+| 1. **保証** | CSP `connect-src 'self'` | ブラウザが遮断する。ライブラリ内部に依存しない |
+| 2. **多層防御** | `remoteManifestFetch: false` / `ocspFetch: false` | 局所的な型拡張。**効かなくても安全**な位置づけ |
+| 3. **検証** | remote-only fixture + e2e で外部リクエスト0件 | **Phase 2 の完了条件** |
+
+- WASM の strings に `ocsp_fetch` もある。OCSP 照会もネットワークなので同じ扱いにする
+- 型拡張は `detectors/c2pa/settings.ts` の**1ファイルに閉じる**。
+  パッケージへの declaration merging は**しない**（アップグレード時に静かに壊れる）
+- 上流（contentauth/c2pa-js）へ公開型に追加する issue を出す
+- **README に「SDK の設定で無効化している」と書かない。「CSP が遮断する」と書く**
+
+`verifyTrust` は **`true` のまま**にする。`false` にすると `signingCredential.untrusted` が
+消えてしまい（実測済み）、trust を評価していない事実を UI に出せなくなる。
+
+```ts
+// detectors/c2pa/settings.ts
+export const VERIFY_SETTINGS = {
+  verifyAfterReading: true,
+  verifyTrust: true,
+  // ↓ c2pa-web 0.13.1 の公開型には無い。多層防御としてのみ渡す。
+  //   保証は CSP 側にある。これが効かなくても外部通信は発生しない。
+  remoteManifestFetch: false,
+  ocspFetch: false,
+} as const;
+```
+
+**remote-only fixture の作り方**（Phase 2 で作成）:
+埋め込みマニフェストの無い JPEG に、XMP `dcterms:provenance` で
+`https://example.invalid/manifest.c2pa` を指す URL を書き込む。
+`example.invalid` は必ず解決に失敗するため、遮断できたかがリクエストログで明確に出る。
+
+### D2. Worker と CSP — 開発も HTTPS に統一する
+
+`workerSrc` は HTTP を拒否する（実測）。当初案の「開発は HTTP + Blob Worker、
+本番は HTTPS + 同一オリジン Worker」は**却下**。
+**開発で通した構成と本番の構成が違うと、CSP の破綻を本番でしか発見できない。**
+
+- 開発・プレビューとも **HTTPS**（`@vitejs/plugin-basic-ssl` を dev 依存として承認）
+- `workerSrc` は開発・本番とも**同一オリジン URL**
+- **CSP は1本だけ。`blob:` を `worker-src` / `script-src` に入れない**
+- 副次効果: v0.2 の TrustMark が WebGPU に secure context を要求するため、どのみち必要になる
+
+確定 CSP:
+
+```
+default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self';
+style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; connect-src 'self';
+font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none';
+frame-ancestors 'none'
+```
+
+- **`_headers` は `/*` に当てる。** Worker スクリプトのレスポンスにも CSP が乗る必要がある。
+  乗らないと Worker 内が CSP 非適用で動きうる
+- **e2e は dev サーバーではなく、ビルド成果物 + 本番ヘッダに対して実行する**
+- Playwright は自己署名証明書のため `ignoreHTTPSErrors: true`
+
+### D3. 独自 Worker は v0.1 では作らない
+
+C2PA 解析のメインスレッド停止は実測 **最大 0.4 ms / Long Task 0件**。
+c2pa-web が内部 Worker で WASM を実行しているため。
+
+- **`src/workers/inspect.worker.ts` は作らない。** SDK の Worker の上に自前 Worker を重ねても、
+  structured-clone のコストと複雑さが増えるだけで得るものがない
+- ただし**エンジンの制約は維持する**（structured-clone 可能・DOM 非依存）。
+  目的は「いつでも Worker 化できること」であって、「今 Worker を作ること」ではない
+- v0.2 の ONNX は「detector 単位の実行戦略」として `runner` 側に足す。
+  **`Detector` インターフェースは実行場所を知らない**
+
+**未確認として残るもの:** ExifReader は JS でメインスレッド実行される。
+大きなファイル（10MB 以上）での停止時間を **Phase 2 で測定する**（完了条件）。
+50ms を超えるようなら EXIF/XMP detector だけ Worker 化を検討する。
+
+### D4. C2PA SDK は遅延ロードする
+
+WASM は raw **8,269,371 bytes** / gzip **3,027,183 bytes**（実測）。
+トップ画面でこれを読むのは論外。
+
+- **C2PA SDK は初回解析時に動的 `import()` で遅延ロードする**
+- SDK インスタンスは**シングルトン**にする（初期化 125ms + Worker 生成が毎回走らないように）
+- `reader.free()` は `finally` で必ず呼ぶ
+- README の Known limitations に「初回解析時に約3MBのモデル/WASM を同一オリジンから取得する」旨を書く
+
+### D5. C2PA API の実際の形（推測禁止・実測済み）
+
+```ts
+const c2pa = await createC2pa({ wasmSrc, workerSrc });  // ★ Promise を返す。await が必要
+const reader = await c2pa.reader.fromBlob(mimeType, blob);
+// reader は C2PA が無いとき null
+const store = await reader.manifestStore();
+```
+
+- `manifests` は**配列ではなく manifest label をキーにした object**
+- assertion の実ラベルは `c2pa.actions.v2`
+- `digitalSourceType` の実パス:
+  `manifests[<label>].assertions[n].data.actions[m].digitalSourceType`
+- **C2PA 無し → `reader` が `null`**（例外ではない）→ `SourceResult.absent`
+- **破損 → 例外** `C2pa(InvalidAsset("..."))` → `SourceResult.error`
+- **0バイト → 例外** `C2pa(UnsupportedType)` → `SourceResult.error`
+- 例外に機械可読な `code` は無い。**message 文字列を verdict 判定に使わない。**
+  境界で独自コードに変換する（診断表示のためだけに message を保持してよい）
+
+```ts
+export type C2paErrorCode =
+  | 'C2PA_INVALID_ASSET'
+  | 'C2PA_UNSUPPORTED_TYPE'
+  | 'C2PA_READ_FAILED';   // 分類できないものはすべてこれ
+```
+
+### D6. integrity と trust を分離する（最重要）
+
+実測: **`validation_state: "Valid"` と `signingCredential.untrusted` は同時に成立する。**
+
+`Valid` は「ハッシュと署名の整合が取れている」であって「発行者が信頼できる」ではない。
+**この2つを1つのフィールドにまとめたら、この製品は嘘をつく。**
+
+型は §2.1 を参照。マッピング規則:
+
+| 実測値 | `integrity` | `signerTrust` |
+| --- | --- | --- |
+| `validation_state: "Invalid"` | `'invalid'` | `'not-evaluated'` |
+| `validation_state: "Valid"` | `'valid'` | `'not-evaluated'` |
+| `validation_state: "Trusted"` | `'valid'` | `'trusted'` ← **MVP では到達しないが必ず実装する（D-030）** |
+| `validation_state: null` | `'unknown'` | `'not-evaluated'` |
+
+**`signingCredential.untrusted` を `'not-trusted'` にマップしないこと。**
+Sourceglass が意図的にトラストリストを設定していないだけであり、
+「この署名者は信頼できない」は言い過ぎになる。生のコードは詳細タブにだけ出す。
+
+> **D-030 による明確化:** 「MVP では常に `'not-evaluated'`」と書いていたのは
+> **`Valid` と `Invalid` の場合の話**であり、`Trusted` のマッピングを省く意味ではない。
+> `Trusted` はトラストリストを設定して初めて発生するので MVP では到達しないが、
+> **マッピングは今実装する。** 将来トラストリストを入れたときに
+> `Trusted` が黙って `'not-evaluated'` に落ちる事故を防ぐため。
+
+#### 帰結（ルールエンジンに直接効く）
+
+> **`integrity === 'invalid'` の manifest から、AI シグナルを `basis: 'explicit'` として
+> 採用してはいけない。**
+
+改ざん検知に失敗した記録の中身は信頼できない。
+該当する場合は `basis: 'heuristic'` に落とし、verdict とは独立した警告行
+（`copy.md` の `integrity.invalid`）を併記する。
+
+**テストに使えるフィクスチャは既にある:** スパイクで使用した
+`adobe-20220124-E-uri-CA.jpg` が `c2pa.actions` のハッシュ不一致
+（`assertion.hashedURI.mismatch`）のケース。
 
 ---
 
@@ -58,6 +220,7 @@
 
 ```
 sourceglass/
+├── .gitignore
 ├── index.html
 ├── package.json
 ├── tsconfig.json
@@ -104,24 +267,185 @@ sourceglass/
     │       └── details/{C2paDetails,ExifDetails,XmpDetails}.tsx
     ├── platform/
     │   └── pixels.browser.ts       # ★ canvas による画素デコード。DOM依存はここだけに閉じる
-    ├── workers/
-    │   └── inspect.worker.ts       # ★ エンジンを Worker 上で実行する薄いラッパ
     └── utils/
+```
+
+`detectors/c2pa/` の内訳（Phase 0 の実測を反映）:
+
+```
+detectors/c2pa/
+├── detector.ts     # Detector 実装。SDK の遅延 import はここ
+├── client.ts       # createC2pa のシングルトン管理（await 必須・free() 必須）
+├── settings.ts     # ★ 公開型に無い設定の局所的な型拡張はこのファイルだけ
+├── normalize.ts    # manifestStore → C2paData（integrity / signerTrust を分離）
+├── errors.ts       # 例外 → C2paErrorCode（message で verdict を判定しない）
+└── rules.ts        # このソース固有のルール
 ```
 
 依存パッケージ（これ以外を入れない）:
 
 - dependencies: `react`, `react-dom`, `@contentauth/c2pa-web`, `exifreader`
 - devDependencies: `vite`, `@vitejs/plugin-react`, `typescript`, `vitest`,
-  `@playwright/test`, `eslint` + `typescript-eslint`, `prettier`
+  `@playwright/test`, `eslint` + `typescript-eslint`, `prettier`,
+  **`@vitejs/plugin-basic-ssl`**（Phase 0 の D2 で追加承認。開発を HTTPS にするため）
+- 型定義（承認済み。§依存ポリシーにより `@types/*` は個別承認不要）:
+  `@types/react@19`, `@types/react-dom@19`, **`@types/node@24`**
+- Phase 3 用に事前承認済み（D-021）: `eslint-plugin-react-hooks`
 
-`public/_headers`（内容は `task.md` §4 の CSP をそのまま使う。`connect-src 'self'` を `'none'` にしないこと）
+> **`@types/node` のメジャーは、実際に使う Node のメジャーに合わせること。**
+> Phase 0 の実測環境は Node v24.13.0。**CI の Node も 24 に固定する。**
+> ここがズレると型エラーが出たり出なかったりする再現性の低い状態になる。
+
+`package.json` の scripts に以下を追加する（デザインガードは設計担当が用意済み）:
+
+```json
+"design:guard": "node scripts/design-guard.mjs",
+"design:lock": "node scripts/design-guard.mjs --write"
+```
+
+### `.gitignore`（承認済み・この内容で作成する）
+
+```gitignore
+# 依存とビルド成果物
+node_modules/
+dist/
+
+# テスト出力
+playwright-report/
+test-results/
+coverage/
+
+# 秘密情報（このリポジトリは public。事故を仕組みで止める）
+.env
+.env.*
+*.pem
+
+# OS
+.DS_Store
+```
+
+**意図的に除外しないもの**（勝手に足さないこと）:
+
+| パス | 理由 |
+| --- | --- |
+| `ai_tasks/` | 設計判断の記録を公開する方針 |
+| `fixtures/` | フィクスチャはコミットする（`fixtures.md`） |
+| `.vscode/` | 将来 `extensions.json` などを共有する可能性がある |
+
+`.env` 系を入れているのは、**今使う予定が無くても事故で入りうるから**。
+public リポジトリでは commit した時点で漏洩が確定する。
+`*.pem` は、開発を HTTPS にしたことで手動生成の証明書が置かれる可能性があるため。
+
+### CSP
+
+`public/_headers` は **D2 の確定 CSP** を使う。`/*` に当てること
+（Worker スクリプトのレスポンスにも CSP が乗る必要がある）。
+`connect-src` を `'none'` にしないこと（WASM 本体の取得が止まる）。
 
 ---
 
 ## Phase 2 — 解析エンジン（2〜2.5人日）★ UI より先に完成させる
 
 UI を一切書かずに、Vitest だけで完結させる。
+
+### 2.0 先に境界を作る（Phase 1 レビューの決定・D-019 / D-020）
+
+**エンジンを1行も書く前にこれをやる。** 後から入れると、既に混入した依存を剥がす作業になる。
+
+`AGENTS.md` §2.1 の「解析エンジンは React / DOM に依存しない」は、
+現状**規約でしか守られていない**。デザインを `design-guard` で守ったのと同じ考え方で、
+機械的に落とせるようにする。**規約は破られるが、CI は破られない。**
+
+**① eslint で import を禁止する**
+
+```js
+{
+  files: ['src/features/provenance/**/*.ts'],
+  rules: {
+    'no-restricted-imports': ['error', {
+      patterns: [
+        { group: ['react', 'react-dom', 'react/*', 'react-dom/*'],
+          message: '解析エンジンは UI に依存しない（AGENTS.md §2.1）。' },
+        { group: ['../../inspector/*', '**/features/inspector/*'],
+          message: 'provenance → inspector の逆方向 import は禁止。' },
+        { group: ['../../platform/*', '**/platform/*'],
+          message: 'DOM 依存は注入する。platform を直接 import しない。' },
+      ],
+    }],
+  },
+}
+```
+
+**② Vitest の既定環境を `node` のままにする**
+
+`features/provenance/` のテストは DOM が存在しない環境で走るので、
+**DOM 依存が混入した瞬間にテストが落ちる。** ①と二重に境界を守れる。
+
+- 既定環境を `jsdom` に変えない
+- UI テストが必要になったら、そのファイルにだけ `// @vitest-environment jsdom` を書く
+- Phase 1 の `App.test.tsx` が `renderToStaticMarkup` を使っているのはこの方針と整合している
+
+**③ 境界が効いていることをテストする**
+
+`features/provenance/` 配下に `import { useState } from 'react'` を書いた状態で
+`npm run lint` が落ちることを一度手で確認し、確認したことを報告に含める
+（デザインガードで同じ確認をしたのと同じ理由。**ガードは動作確認しないと飾りになる**）。
+
+### 2.0.1 メタデータの上限とコンテナ走査（Phase 2 レビューの決定・D-022〜D-028）
+
+実測: 13.3 MB の通常 JPEG は **0.1〜1.5 ms**、11.0 MB の巨大 XMP JPEG は **2,856〜3,765 ms**。
+**遅いのはファイルサイズではなくメタデータ量。**
+
+```
+ExifReader を呼ぶ前に containerScan(bytes) を通す
+  → セグメント一覧 + 合計メタデータバイト数
+  → 上限超過なら ExifReader を呼ばない
+```
+
+`containerScan` は JPEG の APPn マーカー / PNG のチャンク / WebP の RIFF チャンクを
+長さフィールドで飛ばしながら数えるだけ。マイクロ秒で終わる。
+**`copy.md` §3.5 の「領域が無い」/「領域はあるが技術情報のみ」の出し分けにも同じ走査を使う。**
+
+```ts
+/** EXIF + XMP + IPTC の合計。C2PA は含まない（c2pa-web が自前 Worker で扱う） */
+export const METADATA_BYTES_LIMIT = 262_144; // 256 KiB
+
+export type MetadataErrorCode =
+  | 'METADATA_TOO_LARGE'      // 上限超過。ExifReader を呼ばずに中止する
+  | 'METADATA_READ_TIMEOUT'   // 定義のみ。Worker 実装を入れるまで発生しない
+  | 'METADATA_PARSE_FAILED'
+  | 'CONTAINER_UNREADABLE';
+```
+
+- セグメント走査ができないコンテナ（AVIF / HEIC）は、**ファイルサイズ 8 MiB** を粗い代替上限とする
+- 上限超過は `SourceResult.error`（`METADATA_TOO_LARGE`）+ `coverage.failed` に `exif` と `xmp`
+- **`emptyReason.noSegment` を出してはいけない。** 領域は存在した。読まなかっただけ
+
+**`MetadataReader` ポート（D-025）**
+
+```ts
+// features/provenance/ports/metadataReader.ts
+export interface MetadataReader {
+  read(bytes: ArrayBuffer): Promise<RawMetadata>;
+}
+```
+
+- v0.1 の実装は **inline**（ExifReader を直接呼ぶ）。`provenance/` 内に置くので CLI / npm 単体でも動く
+- 将来 Worker 化するときは `platform/` に実装を足して runner へ注入する。**エンジン側の変更はゼロ**
+- **`timeoutMs` を引数に入れない。** inline では同期処理を中断できず、受け取っても守れない。
+  **守れない約束を型に書かない**
+
+**自由記述値の切り詰め（D-027）**
+
+- 1値あたり **512 文字**で切り詰め、`{ truncated: true, originalLength: n }` を持たせる
+- 配列は最大 **50 要素**
+- 切り詰めた事実を UI に出す（`copy.md` の `value.truncated`）。原文は保持しない
+
+**Worker 化を再開する条件（D-024）**
+
+> 上限ぎりぎり（メタデータ約 250 KB）の `xmp-large-within-limit.jpg` で
+> **50 ms を超える停止が観測されたら、EXIF/XMP detector を Worker 化する。**
+> 256 KiB という上限値は外挿なので、**実測して裏を取ること。**
 
 ### 2.1 型定義（`types/index.ts`）
 
@@ -135,7 +459,9 @@ export type Verdict =
 export type SourceResult<T> =
   | { status: 'present'; data: T }
   | { status: 'absent' }
-  | { status: 'error'; error: { code: string; message: string } };
+  | { status: 'error'; error: { code: string; message: string } }
+  /** ★ D-029: 「調べていない」。absent（調べたが無かった）と絶対に混同しない */
+  | { status: 'not-checked'; reason: 'unsupported' | 'not-requested' | 'unavailable' };
 
 export type SignalCategory = 'ai-generation' | 'ai-editing' | 'provenance' | 'software';
 
@@ -186,6 +512,28 @@ export interface Coverage {
   withMeaningfulData: string[];
 }
 
+/**
+ * 形式的な整合性（ハッシュ・署名の一致）。**信頼性の話ではない。**
+ * c2pa-web の validation_state: "Valid" はここに対応する。
+ */
+export type IntegrityState = 'valid' | 'invalid' | 'unknown';
+
+/**
+ * 署名者の信頼性評価。
+ * MVP ではトラストリストを意図的に設定しないため、常に 'not-evaluated' になる。
+ * `signingCredential.untrusted` を 'not-trusted' にマップしないこと（言い過ぎになる）。
+ */
+export type SignerTrust = 'trusted' | 'not-trusted' | 'not-evaluated';
+
+export interface C2paValidation {
+  integrity: IntegrityState;
+  signerTrust: SignerTrust;
+  /** 生の validation_state。サマリーには出さず、詳細タブでのみ表示する */
+  rawState: 'Valid' | 'Invalid' | 'Trusted' | null;
+  /** validation_results.activeManifest.failure の生コード。詳細タブ用 */
+  failures: ReadonlyArray<{ code: string; explanation: string | null }>;
+}
+
 export interface ProvenanceReport {
   file: { name: string; size: number; mimeType: string };
   /** detector id → 結果。型付きで取り出すには selectors.ts を使う */
@@ -219,14 +567,19 @@ export async function inspectImage(
 - **`File` を直接受け取らない。** `AnalysisInput` の生成は `platform/` 側の責務
   （＝Node/CLI では別実装を差せる）
 
-### 2.2.1 Worker 化
+### 2.2.1 実行戦略（Worker は v0.1 では作らない）
 
-`src/workers/inspect.worker.ts` がエンジンを呼び、UI は postMessage 経由で結果を受け取る。
+Phase 0 の D3 により、**v0.1 では全 detector をメインスレッドで実行する。**
+c2pa-web が内部で Worker を持っており（実測: 停止 0.4 ms）、その上に自前 Worker を
+重ねる意味がないため。
 
-- `pixels()` は Worker 内では `OffscreenCanvas` / `createImageBitmap` を使う実装に差し替える
-- Worker が使えない環境ではメインスレッド実行にフォールバックする
-- Phase 0 の #8（メインスレッド blocking 計測）の結果次第だが、**v0.2 の ONNX 推論で
-  必ず必要になるため v0.1 から入れる**
+ただし将来 Worker 化するときに書き直しにならないよう、次を守る。
+
+- `ProvenanceReport` と `AnalysisInput` の入出力は **structured-clone 可能**に保つ
+- `features/provenance/` から DOM / `window` を触らない
+- 実行の仕方を決めるのは `engine/runner.ts` のみ。**`Detector` は自分がどこで動くかを知らない**
+
+v0.2 の ONNX 推論は、`runner` に「detector 単位の実行戦略」を足す形で対応する。
 
 ### 2.3 Rule Engine（`rules/`）
 
@@ -263,6 +616,10 @@ MVP に入れるルール:
 | `xmp.creatorTool.aiTool` | xmp | heuristic | `xmp:CreatorTool` が同上 |
 
 - `algorithmicMedia`（非AIのアルゴリズム生成）を **AI 判定に含めない**こと。誤判定の主要因。
+- **C2PA 由来のルールは `integrity === 'valid'` のときだけ `basis: 'explicit'` を返す。**
+  `'invalid'` のときは `'heuristic'` に落とす（D6）。改ざん検知に失敗した記録の中身は信頼できない。
+- `manifests` は配列ではなく label をキーにした object。
+  **すべての manifest の assertions を走査する**（`active_manifest` だけを見ない）。
 - 既知 AI ツール名リストは `vocab.ts` に定数として置き、**完全一致 or 明確な前方一致のみ**。
   部分一致による誤検知を避ける（例: "Adobe Photoshop" 単体は AI 扱いしない）。
 
@@ -298,6 +655,17 @@ MVP に入れるルール:
 - rules の各ルールに対する単体テスト（正例・負例）
 - **実物の AI 生成画像（`fixtures/real/`）は verdict を厳密に固定しない**
   （上流サービスの出力変更で CI が壊れるため、構造のスナップショット確認に留める）
+
+**Phase 0 の決定に対応する追加テスト（Phase 2 の完了条件）:**
+
+- **remote-only fixture で外部リクエストが 0 件**であること（D1）
+  → `https://example.invalid/...` を `dcterms:provenance` に持つ JPEG を作り、e2e で検証
+- `adobe-20220124-E-uri-CA.jpg`（ハッシュ不一致）で
+  **`integrity === 'invalid'` になり、C2PA 由来シグナルが `explicit` にならない**こと（D6）
+- 公式テストファイルで **`signerTrust === 'not-evaluated'`** になること（`'not-trusted'` にしない）
+- C2PA 無し → `absent` / 破損 → `error` / 0バイト → `error` が**別経路として区別される**こと（D5）
+- **ExifReader のメインスレッド停止時間を 10MB 以上のファイルで測定する**（D3 の積み残し）
+  → 50ms を超えるなら EXIF/XMP detector の Worker 化を設計担当に相談する
 
 **Phase 2 完了条件:** UI が1行も無い状態で、Node/Vitest 上から `inspectImage()` が
 3種の verdict を正しく返すこと。
@@ -440,6 +808,12 @@ GitHub Pages にも置ける構成にする（その場合 CSP は `<meta>` タ�
 - [ ] `features/provenance/` が React / DOM API に依存していない（canvas は `platform/` のみ）
 - [ ] Detector を1つ追加するのに `registry.ts` への1行 + 新規ディレクトリだけで済む
 - [ ] `coverage`（検査した項目）が UI に表示されている
-- [ ] エンジンが Worker 上で動き、`ProvenanceReport` が structured-clone 可能
+- [ ] `ProvenanceReport` が structured-clone 可能（Worker 化はしないが制約は維持する）
+- [ ] `integrity` と `signerTrust` が別フィールドで、`Valid` を trust の根拠にしていない
+- [ ] `integrity === 'invalid'` のとき C2PA 由来シグナルが `explicit` にならない
+- [ ] remote-only fixture で外部リクエストが 0 件
+- [ ] CSP が1本（開発・本番で同一）で、`worker-src` に `blob:` が入っていない
+- [ ] e2e がビルド成果物 + 本番ヘッダに対して実行されている
+- [ ] トップ画面の初期ロードに C2PA の WASM が含まれていない（遅延ロードされている）
 - [ ] `any` が 0 個 / `tsc --noEmit` と eslint がクリーン
 - [ ] README に Known limitations と MPL-2.0 の記載がある

@@ -1,0 +1,16 @@
+# 依存とビルド成果物
+node_modules/
+dist/
+
+# テスト出力
+playwright-report/
+test-results/
+coverage/
+
+# 秘密情報（このリポジトリは public。事故を仕組みで止める）
+.env
+.env.*
+*.pem
+
+# OS
+.DS_Store

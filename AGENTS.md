@@ -11,7 +11,9 @@
 
 | ファイル | 内容 |
 | --- | --- |
-| `ai_tasks/context_snapshot.md` | **最初にこれを読む。** 現在地・直近の作業・次の一手 |
+| `ai_tasks/README.md` | **最初にこれを読む。** ドキュメントの索引と、どこに何を書くかのルール |
+| `ai_tasks/context_snapshot.md` | 現在地・直近の作業・次の一手 |
+| `ai_tasks/decisions.md` | **決定台帳。「なぜそうなっているのか」の唯一の入口** |
 | `ai_tasks/20260804_sourceglass_mvp_design/task.md` | 要件・技術調査結果・技術選定の根拠 |
 | `ai_tasks/20260804_sourceglass_mvp_design/implementation_plan.md` | Phase 0〜6 の作業指示 |
 | `ai_tasks/20260804_sourceglass_mvp_design/roadmap.md` | v0.1 / v0.2 / v0.3 の方針 |
@@ -58,6 +60,23 @@
 | `Detect`（AI検出の意味で） | AI 検出器だと誤解される。メタデータについては `found` を使う |
 | 「安全」「問題なし」「クリーン」 | 判定していないものを判定したことになる |
 | `%` を伴うあらゆる表現 | 確率表示の禁止 |
+
+#### 適用範囲 — 禁止するのは「主張」であって「否定」ではない
+
+このルールが止めたいのは **Sourceglass がそれをしたと読める用法**である。
+
+| 用法 | 可否 |
+| --- | --- |
+| 製品名 / 機能名 / 変数名 / UI のラベル・見出し | **常に禁止** |
+| 「〜を証明しました」「検証済みです」 | **禁止**（主張） |
+| **「〜を証明するものではありません」「AI ではないと断定しません」** | **必須**（限界の説明） |
+| **「`AI probability: 87%` のような表示は行いません」** | **必須**（何をしないかの明示） |
+
+**否定文で限界を述べるために禁止語を使うのは、ルールの目的そのものである。**
+ここで言い換えると免責が弱くなり、ルールが意図と逆に働く。
+
+判断に迷ったら: **その文はこちらの能力を大きく見せているか、小さく見せているか。**
+小さく見せているなら、禁止語が入っていても正しい。
 
 ### 1.4 UI の見せ方
 
@@ -143,8 +162,42 @@ npm run design:guard    # 規約違反を検査（CI で実行）
 
 ### 2.4 「情報が無い」と「解析に失敗した」を混同しない
 
-`SourceResult<T>` は `present` / `absent` / `error` の3状態。
+`SourceResult<T>` は `present` / `absent` / `error` / `not-checked` の4状態。
 **この区別を潰す実装をしない。** ユーザーに見せる意味がまったく違う。
+
+- `absent` = **調べたが、無かった**
+- `not-checked` = **調べていない**（未対応形式 / 実行を要求されていない）
+
+スキップした detector を `absent` にしないこと（D-029）。
+「ウォーターマークを調べたが無かった」と「一度も見ていない」を同じ値で表すのは、
+このプロダクトが最もやってはいけないことである。
+
+C2PA では実測上、次のように分かれる（`implementation_plan.md` D5）。
+
+- C2PA 無し → `reader` が `null` → `absent`
+- 破損 / 0バイト → **例外** → `error`
+
+### 2.5 integrity と signer trust を混同しない
+
+`validation_state: "Valid"` と `signingCredential.untrusted` は**同時に成立する**（実測）。
+
+- `integrity` = ハッシュ・署名の整合が取れているか
+- `signerTrust` = 発行者が信頼できるか
+
+**この2つを1つのフィールドにまとめない。** まとめた瞬間にこの製品は嘘をつく。
+MVP はトラストリストを設定しないので `signerTrust` は常に `'not-evaluated'`。
+**`signingCredential.untrusted` を `'not-trusted'` にマップしないこと**（言い過ぎになる）。
+
+`integrity === 'invalid'` のとき、**C2PA 由来の AI シグナルを `explicit` にしない。**
+
+### 2.6 プライバシーの保証は CSP に置く
+
+外部通信を止めているのは **CSP であって、ライブラリの設定ではない。**
+`remoteManifestFetch: false` などは多層防御であり、**効かなくても安全**な位置づけ。
+
+- 公開型に無い設定に依存する箇所は `detectors/c2pa/settings.ts` の1ファイルに閉じる
+- パッケージ型への declaration merging をしない（アップグレードで静かに壊れる）
+- **README や UI に「SDK の設定で無効化している」と書かない**
 
 ---
 
@@ -167,6 +220,13 @@ npm run design:guard    # 規約違反を検査（CI で実行）
 1. 実行時にネットワークを使わないか
 2. ライセンスが MIT 本体と両立するか（MPL-2.0 は無改変利用なら可）
 3. メンテナンスされているか
+
+**例外: `@types/*`（DefinitelyTyped の型定義のみのパッケージ）は個別承認を不要とする。**
+ビルド時に消えるため、上記3基準のどれにも触れないため。ただし:
+
+- 必ず `devDependencies` に置く
+- 実行時コードを含まないことを確認する
+- `@types/node` のメジャーは、実際に使う Node のメジャーに合わせる（CI の Node も固定する）
 
 ### C2PA の API を推測で書かない
 
@@ -205,9 +265,16 @@ npm run typecheck && npm run test && npm run design:guard && npm run build
 
 ## 6. 作業ログ（ai_tasks プロトコル）
 
+**どこに何を書くかは `ai_tasks/README.md` §3 が正本。** 要点:
+
 - コードを変更したら、**同じ作業の中で `ai_tasks/context_snapshot.md` を更新する**
-- `context_snapshot.md` は常に上書き。過去版を残さない。トピック別に分割しない
-- 含める内容: Current Topic / Last Actions / Next Step / Resume Prompt
+- `context_snapshot.md` は**現在地だけ。常に上書き。60行以内**に保つ。
+  伸びてきたら変更履歴になっている。`decisions.md` へ逃がすこと
+- 含める内容: Current Topic / Working Agreement / Last Actions / Next Step / Resume Prompt
+- **判断・選択・却下した案は `ai_tasks/decisions.md` に1エントリ追記する。**
+  決定を黙って書き換えない。覆すなら新しい番号で追記し、古い方に取り消し線を引く
+- **同じ根拠を2箇所に書かない。** 片方が必ず腐る。
+  `decisions.md` は「何を・なぜ・詳細はどこか」だけを持ち、実装の詳細は仕様側に置いてリンクする
 - 各ファイル冒頭の `# Last Updated: YYYY-MM-DD HH:mm` を更新する
 - Phase 0 のスパイク結果は `spike_result.md` に**実際の JSON とログを貼る**。要約で済ませない
 

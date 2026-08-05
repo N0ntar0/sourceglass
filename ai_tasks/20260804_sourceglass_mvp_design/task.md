@@ -58,14 +58,23 @@ reader.free();   // ← 明示的な解放が必要（WASM メモリリーク防
 - inline 版（`@contentauth/c2pa-web/inline`）は base64 埋め込みでネットワーク要求ゼロだが
   バンドルが大幅に肥大するため MVP では不採用（→ 将来オプション）
 
-**未確定（Phase 0 のスパイクで実物を確認すること・推測実装禁止）:**
+**上記の API 例は Phase 0 の実測で修正済み。正しくは次のとおり:**
 
-1. `createC2pa()` の settings で **remote manifest fetch を無効化できるか**
-   （c2pa-rs には `verify.remote_manifest_fetch` 設定が存在。ブラウザ版での指定方法が未確認）
-2. trust list / trust anchor の扱い。MVP では**トラスト評価を行わない**方針とし、
-   UI では「署名の形式的な検証」と「発行者の信頼性評価」を明確に区別して表示する
-3. `manifestStore()` / validation state の実際の JSON 構造とフィールド名
-4. Web Worker 利用の有無（ドキュメントに記載なし。メインスレッドを塞ぐならワーカー化を検討）
+```ts
+const c2pa = await createC2pa({ wasmSrc, workerSrc });  // ★ Promise を返す
+```
+
+**Phase 0（2026-08-05 完了）で解決した項目:**
+
+| # | 当初の未確定事項 | 実測結果 |
+| --- | --- | --- |
+| 1 | remote manifest fetch を無効化できるか | WASM には存在するが**公開型に無い**。実行時は受理されるが遮断は未再現 → **保証は CSP に置く**（`implementation_plan.md` D1） |
+| 2 | trust list / trust anchor の扱い | **`validation_state: "Valid"` と `signingCredential.untrusted` は同時に成立する。** integrity と signerTrust を型で分離（D6） |
+| 3 | `manifestStore()` の実 JSON 構造 | 取得済み（`spike_result.md` §2）。`manifests` は配列ではなく object |
+| 4 | Web Worker 利用の有無 | **c2pa-web が内部 Worker を持つ。** メインスレッド停止は実測 0.4 ms → 自前 Worker は作らない（D3） |
+
+実測の全文は [`spike_result.md`](./spike_result.md)、決定は
+[`implementation_plan.md`](./implementation_plan.md) の「Phase 0 の決定事項」を参照。
 
 ### 2.2 EXIF / XMP
 
@@ -198,15 +207,21 @@ verdict の種類は要件どおり3つのまま増やさない。**強さの違
 1. `dist/` 内に外部オリジンの URL 参照が存在しないことを grep で検査（CI）
 2. Playwright で解析フロー全体を実行し、**発生した全ネットワークリクエストを記録 →
    同一オリジン以外が 0 件であることをアサート**（CI）
-3. CSP を配信ヘッダで強制:
+3. CSP を配信ヘッダで強制（Phase 0 の D2 で確定・`/*` に当てる）:
    ```
    Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval';
-     style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:;
-     connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'
+     worker-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:;
+     connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none';
+     form-action 'none'; frame-ancestors 'none'
    ```
    - `'wasm-unsafe-eval'` は WASM 実行に必要
    - `connect-src` は `'self'`。**`'none'` にすると wasm 本体の fetch も止まる**ため不可。
      `'none'` を実現したい場合は inline wasm 版が必要（将来オプション）
+   - **`worker-src 'self'`。`blob:` を入れない。** そのために開発も HTTPS で行う（D2）
+   - **`/*` に当てること。** Worker スクリプトのレスポンスにも CSP が乗る必要がある
+
+   **この CSP が、remote manifest fetch と OCSP 照会を遮断する保証そのものである。**
+   ライブラリの設定に保証を負わせない（D1）。
 
 ---
 
@@ -214,6 +229,9 @@ verdict の種類は要件どおり3つのまま増やさない。**強さの違
 
 - 来歴情報の不在は AI 不使用を意味しない
 - メタデータは容易に除去・改変・偽装できる（SNS 投稿時のリサイズで大半が消える）
-- MVP では **C2PA 署名者のトラストリスト評価を行わない**（署名の形式的検証のみ）
+- MVP では **C2PA 署名者のトラストリスト評価を行わない**（署名の形式的検証のみ）。
+  実測により、**トラストリスト未設定でも `validation_state` は `Valid` になる**ことが判明。
+  「検証に通った」を「発行者が信頼できる」と読ませてはいけない
+- **初回解析時に約3MB（gzip）の WASM を同一オリジンから取得する**（実測 8.27MB / gzip 3.03MB）
 - リモートマニフェスト（クラウド保管の C2PA）は取得しない = 検出できない
 - 対応形式は JPEG / PNG / WebP（+ ExifReader の対応範囲で AVIF / HEIC も試験的に）

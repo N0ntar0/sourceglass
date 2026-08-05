@@ -10,6 +10,9 @@ Your images never leave your browser.
 
 [日本語](./README.ja.md)
 
+The interface is available in English and Japanese. It defaults to the browser language
+and remembers a manual selection in the browser.
+
 ---
 
 ## What Sourceglass is
@@ -35,8 +38,8 @@ Those claims cannot be made honestly from the information available, so Sourcegl
 does not make them.
 
 The absence of AI-related provenance does not prove that an image was not generated or
-edited using AI. Metadata is trivially removed — most of it disappears the moment an
-image is posted to a social network.
+edited using AI. Metadata is trivially removed — most of it disappears the moment an image
+is posted to a social network.
 
 ---
 
@@ -46,7 +49,7 @@ Sourceglass is a static web application. There is no server, no database, and no
 Everything runs in your browser.
 
 - **No uploads** — your image is never transmitted anywhere
-- **No AI APIs** — no LLM, no third-party detection service
+- **No AI APIs** — no LLM, no third-party AI classification service
 - **No accounts, no tracking of your images or results**
 - All analysis code, including the C2PA WebAssembly module, is served from the same origin
 
@@ -57,8 +60,9 @@ We would rather prove this than claim it. Sourceglass enforces it two ways:
 1. **Content Security Policy.** The app is served with a CSP that restricts every fetch to
    its own origin. A request to a third party would be blocked by the browser, not merely
    discouraged by us.
-2. **An automated test.** A Playwright test records every network request made during a
-   full analysis run and fails the build if any of them leave the origin.
+2. **Automated tests.** Playwright records every network request during both the initial
+   page load and the complete image-inspection path. The build fails if any request leaves
+   the origin.
 
 Both run in CI. If you do not trust the claim, read
 [`e2e/privacy.spec.ts`](./e2e/privacy.spec.ts) and the CSP in [`public/_headers`](./public/_headers).
@@ -123,6 +127,10 @@ Sourceglass reports one of three outcomes. None of them is a verdict about the i
 Sourceglass also shows **what it checked**, because "not found" means nothing without
 knowing where it looked.
 
+If a file format is unsupported, Sourceglass reports that it was **not checked**. It does
+not report that no provenance record remains. This distinction is intentional: not
+checking and checking without finding a record are different outcomes.
+
 ---
 
 ## Known limitations
@@ -134,8 +142,18 @@ knowing where it looked.
 - **No trust evaluation.** Sourceglass does not currently evaluate whether a C2PA signer is
   on a trust list. It reports the validation state it is given, and says so.
 - **No remote manifests.** C2PA manifests stored remotely rather than embedded are not
-  fetched, and therefore not detected. This is a deliberate consequence of not making
+  fetched, and therefore cannot be found. This is a deliberate consequence of not making
   network requests.
+- **Metadata parsing is limited to 256 KiB.** If the combined EXIF, XMP, and IPTC metadata
+  exceeds 256 KiB (262,144 bytes), those metadata sources are not parsed and are shown as
+  "Could not be read." Without a limit, oversized metadata blocked the browser's main
+  thread for several seconds in measurement. See the
+  [measurement record](./ai_tasks/20260805_sourceglass_phase2/measurement.md).
+- **Unsupported formats are not checked.** The UI says they were not checked rather than
+  saying that no provenance record remains. This preserves the difference between missing
+  information and an inspection that did not run.
+- **The first C2PA inspection loads approximately 3 MB of compressed WebAssembly.** It is
+  served from the same origin and is not loaded with the initial page.
 - **Pixel-level watermarks are not yet checked.** See the roadmap below.
 
 ---
@@ -170,6 +188,8 @@ the DOM, so it can be extracted as a standalone package later.
 
 ## Development
 
+Use Node.js 24.
+
 ```bash
 npm install
 npm run dev
@@ -177,9 +197,14 @@ npm run dev
 
 ```bash
 npm run build       # static output in dist/
-npm run test        # engine tests (Vitest)
-npm run test:e2e    # privacy verification (Playwright)
+npm run test        # unit tests (Vitest)
 npm run typecheck
+npm run lint
+npm run design:guard
+npm run test:e2e             # all provenance, privacy, and UI checks (Playwright)
+npm run test:e2e:provenance  # provenance harness
+npm run test:e2e:privacy     # production build: privacy checks
+npm run test:e2e:app         # production build: privacy and UI checks
 ```
 
 The build output is a plain static site. Host it anywhere that can serve files and set
@@ -190,7 +215,7 @@ headers.
 Contributions are welcome, with one hard rule:
 
 **No feature may guess.** Anything that infers AI usage from image content — a classifier,
-a heuristic on pixels, a third-party detection API — is out of scope permanently. That is
+a heuristic on pixels, a third-party AI classification API — is out of scope permanently. That is
 not a limitation of the current version; it is what Sourceglass is.
 
 If you are working on this repo with an AI coding agent, read [`AGENTS.md`](./AGENTS.md) first.

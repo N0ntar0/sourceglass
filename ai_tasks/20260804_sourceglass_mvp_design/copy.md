@@ -58,12 +58,61 @@
 | `result.ai.explicit.heading` | AI生成・AI編集を示す記録が見つかりました | A record indicating AI generation or AI editing was found |
 | `result.ai.explicit.note` | C2PA の正式な来歴情報に基づく検出です。ただし、記録の内容そのものが正しいことまでは保証しません。 | Based on formal C2PA provenance data. Sourceglass does not guarantee that the record itself is truthful. |
 
-### AI_RELATED_PROVENANCE / basis = heuristic — 記号 `⚠` / 色は explicit より弱く
+### AI_RELATED_PROVENANCE / basis = heuristic — 記号 `⚠` / 強調なし（実線）
+
+**heuristic には由来の異なる2種類があり、文言を使い分ける。**
+
+**(a) メタデータの自由記述欄に AI ツール名があった場合**
 
 | key | ja | en |
 | --- | --- | --- |
 | `result.ai.heuristic.heading` | AIツールに関する記述が見つかりました | A mention of an AI tool was found |
 | `result.ai.heuristic.note` | メタデータの Software 欄などに書かれていたものです。C2PA のように検証された情報ではなく、書き換えも可能です。 | Found in metadata fields such as Software. This is not verified data like C2PA, and it can be edited. |
+
+**(b) C2PA に記録はあるが、整合性チェックに失敗している場合（D-016 の降格）**
+
+| key | ja | en |
+| --- | --- | --- |
+| 見出し | `result.ai.explicit.heading` を使う（**記録が見つかった事実は同じ**） | same |
+| `result.ai.tampered.note` | ただし、この C2PA 記録は整合性チェックに失敗しています。記録された内容は信頼できません。 | However, this C2PA record failed its integrity checks, so its contents cannot be relied upon. |
+
+> **(b) で `result.ai.heuristic.note` を使ってはいけない。**
+> 「メタデータの Software 欄などに書かれていた」は**事実として誤り**である。
+> 由来は C2PA であって自由記述欄ではない。**AI 側に振れたときこそ正確に書く。**
+> `integrity.invalid` の行はそのまま併記する。
+
+---
+
+## 2.5 C2PA の integrity / trust（verdict とは独立に表示する）
+
+Phase 0 の実測により、**`validation_state: "Valid"` と `signingCredential.untrusted` は
+同時に成立する**ことが判明した。「検証に通った」と「発行者が信頼できる」は別の話であり、
+**まとめて表示したらこの製品は嘘をつく。**
+
+verdict を増やさず、**独立した行**として合成する（どの verdict とも共存しうる）。
+
+### 整合性チェックに失敗した場合（`integrity === 'invalid'`）
+
+C2PA の記録は存在するが、ハッシュや署名の照合に失敗した状態。
+
+| key | ja | en |
+| --- | --- | --- |
+| `integrity.invalid` | この画像の C2PA 記録は、内容の整合性チェックに失敗しました。記録された内容は信頼できません。 | The C2PA record in this image failed its integrity checks. Its contents cannot be relied upon. |
+
+**この場合、C2PA 由来の AI シグナルを `explicit` として扱わない**（`implementation_plan.md` D6）。
+改ざん検知に失敗した記録の中身を「正式な表明」として提示できないため。
+
+### 署名者の信頼性（MVP では常にこれ）
+
+| key | ja | en |
+| --- | --- | --- |
+| `trust.notEvaluated` | 署名者の信頼性は評価していません。 | The signer's trustworthiness was not evaluated. |
+
+**「この署名者は信頼できません」と書かないこと。**
+Sourceglass が意図的にトラストリストを設定していないだけであり、
+署名者を否定的に評価したわけではない。この2つはまったく違う。
+
+生の `signingCredential.untrusted` などのコードは、**詳細タブにのみ**表示する。
 
 ---
 
@@ -128,6 +177,44 @@
 | `whyEmpty.item.resave` | 「画像を保存」での再エンコード | Re-encoding via "save image" |
 | `emptyReason.noSegment` | このファイルには EXIF / XMP / C2PA の領域が存在しません | This file contains no EXIF, XMP, or C2PA section |
 | `emptyReason.technicalOnly` | EXIF は {n} 項目ありますが、すべて画像の技術情報です | EXIF has {n} entries, but all of them are technical image data |
+| `emptyReason.tooLarge` | メタデータ領域が大きすぎるため、読み取りを中止しました（上限 {limit}）。 | The metadata section was too large to read (limit {limit}). |
+| `emptyReason.notChecked` | この形式は解析できないため、調べていません。 | This format cannot be inspected, so it was not checked. |
+
+> **`not-checked` のときに `emptyReason.noSegment` を出してはいけない。**
+> 未対応形式などで detector が動かなかった場合、`results` は `absent` ではなく
+> `not-checked` になる（D-029）。**「調べたが無かった」ではなく「調べていない」。**
+> verdict は `NO_PROVENANCE_INFORMATION` になるが、
+> **理由として「記録が残っていない」と書いてはいけない。** 記録の有無を見ていない。
+
+> **`emptyReason.tooLarge` のときに `emptyReason.noSegment` を出してはいけない。**
+> 領域は存在した。読まなかっただけである。この2つを混同すると
+> 「調べた結果 何も無かった」と「調べていない」が入れ替わる（`AGENTS.md` §2.4）。
+> `coverage.failed`（読み取れなかったもの）を**必ず併記する**。
+
+### 値を切り詰めたとき（D-027）
+
+| key | ja | en |
+| --- | --- | --- |
+| `value.truncated` | **英語のまま**（下記参照） | (truncated, {n} characters total) |
+
+**切り詰めた事実を隠さないこと。** 隠すとユーザーは「全部見た」と誤解する。
+
+### 日本語版でも英語のままにするキー
+
+`design.md` §5 の「**等幅ブロックに日本語を入れない**」が優先される。
+以下は等幅（計測器パート）にのみ現れるため、`ja` でも英語を入れる。
+
+```
+value.truncated
+section.provenance / section.result
+details.c2pa / details.exif / details.xmp
+details.field / details.value / details.evidence
+status.absent / status.notChecked / status.error
+```
+
+**Summary の値（`summary.found` =「検出」など）は日本語で良い。**
+`.summary__val` は等幅だが、2〜4文字の短い語なので破綻しない。
+この規則が本当に守りたいのは、長い英語のフィールド名と値が並ぶ**詳細テーブル**である。
 
 ### 表示例
 
