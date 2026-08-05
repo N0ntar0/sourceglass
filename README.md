@@ -32,13 +32,14 @@ It answers questions like:
 **Sourceglass does not determine whether an image is AI-generated.**
 It inspects provenance information embedded in the image.
 
-It does not look at pixels and guess, and it will never tell you an image is "not AI".
+It does not look at pixels and guess. It will never show you
+"AI probability: 87%", and it will never tell you an image is "not AI".
 Those claims cannot be made honestly from the information available, so Sourceglass
 does not make them.
 
-The absence of AI-related provenance does not establish that an image was not generated
-or edited using AI. Metadata is trivially removed — most of it disappears the moment an
-image is posted to a social network.
+The absence of AI-related provenance does not prove that an image was not generated or
+edited using AI. Metadata is trivially removed — most of it disappears the moment an image
+is posted to a social network.
 
 ---
 
@@ -54,7 +55,7 @@ Everything runs in your browser.
 
 ### Verifiable privacy
 
-Sourceglass makes this claim inspectable and enforces it two ways:
+We would rather prove this than claim it. Sourceglass enforces it two ways:
 
 1. **Content Security Policy.** The app is served with a CSP that restricts every fetch to
    its own origin. A request to a third party would be blocked by the browser, not merely
@@ -63,7 +64,7 @@ Sourceglass makes this claim inspectable and enforces it two ways:
    page load and the complete image-inspection path. The build fails if any request leaves
    the origin.
 
-Both are checked in CI. You can inspect
+Both run in CI. If you do not trust the claim, read
 [`e2e/privacy.spec.ts`](./e2e/privacy.spec.ts) and the CSP in [`public/_headers`](./public/_headers).
 
 ---
@@ -134,8 +135,8 @@ checking and checking without finding a record are different outcomes.
 
 ## Known limitations
 
-- **The absence of provenance does not establish how an image was made.** Metadata is
-  removed by re-saving, resizing, screenshotting, and by nearly every social platform.
+- **The absence of provenance proves nothing.** Metadata is removed by re-saving, resizing,
+  screenshotting, and by nearly every social platform.
 - **Metadata can be forged.** A record saying an image was captured by a camera does not
   make it true. Sourceglass reports what is recorded, not whether it is honest.
 - **No trust evaluation.** Sourceglass does not currently evaluate whether a C2PA signer is
