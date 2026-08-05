@@ -5,8 +5,11 @@
 アップロードなし。AI API なし。アカウント登録なし。
 画像はブラウザの外に出ません。
 
-> **ステータス: 開発中（pre-alpha）。** まだリリースされていません。
-> 設計は確定しており [`ai_tasks/`](./ai_tasks/) に記録されています。実装は進行中です。
+**[sourceglass.pages.dev](https://sourceglass.pages.dev/)** — 開いて画像を落とすだけです。
+
+> **ステータス: v0.1.0。** メタデータ層（EXIF / XMP / C2PA）を実装しています。
+> 画素レベルのウォーターマークはまだ調べません。下記のロードマップを参照してください。
+> 設計判断は [`ai_tasks/`](./ai_tasks/) に記録しています。
 
 [English](./README.md)
 
@@ -65,6 +68,12 @@ Sourceglass は静的な Web アプリケーションです。サーバーもデ
 どちらも CI で実行されます。主張を信用する必要はありません。
 [`e2e/privacy.spec.ts`](./e2e/privacy.spec.ts) と [`public/_headers`](./public/_headers) の CSP を
 読んで確かめてください。
+
+公開中のサイトも、こちらの言い分を信じずに自分で確認できます。
+
+```bash
+curl -sI https://sourceglass.pages.dev/ | grep -i content-security-policy
+```
 
 ---
 

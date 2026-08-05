@@ -1,4 +1,4 @@
-# Last Updated: 2026-08-05 19:30
+# Last Updated: 2026-08-05 21:30
 
 # 決定台帳
 
@@ -596,3 +596,66 @@ Phase 5 で、**免責文が禁止語ルールを避けるために弱められ�
 **帰結:** `copy.md` §6 の確定文（英日とも）へ戻す。
 `Detect` → `found` の言い換え（"not detected" → "cannot be found"）は
 `AGENTS.md` §1.3 の指示どおりで、こちらは正しい適用。
+
+---
+
+## Phase 6 レビュー / v0.1（2026-08-05）
+
+### D-041 CI の `dist/` 外部 origin 検査は、テキストファイルだけを見ている
+
+`.github/workflows/ci.yml` の検査は `grep -RIhoE` を使っており、`-I` によって
+**バイナリファイルを飛ばす**。つまり **WASM の中身は検査されていない。**
+
+実際、同梱の `c2pa_bg.wasm` には `c2pa.org` / `cipa.jp` / `cv.iptc.org` などの
+文字列が含まれる（いずれも仕様・名前空間の識別子であり、取得先ではない）。
+
+**これは欠陥ではないが、検査の守備範囲を正確に理解しておく必要がある。**
+
+| 層 | 何が担保するか |
+| --- | --- |
+| ビルド成果物のテキスト | CI の origin 検査 |
+| **バイナリ（WASM）** | **検査対象外** |
+| 実行時の通信 | **CSP（保証）+ privacy E2E（検証）** |
+
+保証は元々 CSP に置いてある（D-011）。origin 検査は「うっかり外部 URL を書いた」を
+早期に捕まえる補助であり、**これ単体を根拠に「外部参照はゼロ」と言わないこと。**
+
+### D-042 v0.1 の CSP 実測は本番と preview の両方で確認済み
+
+`public/_headers` を置いただけでは何も保証していない、という Phase 6 の中心課題は解消した。
+
+- `https://sourceglass.pages.dev/`（HTML / C2PA Worker）
+- `https://develop.sourceglass.pages.dev/`（HTML / C2PA Worker）
+
+いずれも `public/_headers` と同一の CSP を返す。**`/*` が Worker スクリプトにも
+適用されることを実測できた**（D-012 の前提が本番で成立）。
+
+設計担当が独立に確認した事実:
+
+- **本番が配信する `index-srsxaQV6.js` は、レビュー対象コミットのローカルビルドと同一ハッシュ**。
+  本番はレビューしたコードそのものである
+- WASM は `application/wasm` として同一オリジンから配信されている
+- Cloudflare が `referrer-policy` と `x-content-type-options: nosniff` を追加している（有害ではない）
+
+記録: `ai_tasks/20260805_sourceglass_phase6/deploy_verification.md`
+
+### D-043 タグを打つ前に README の Status を確認する
+
+**v0.1.0 のタグとリリースは、README が「Nothing here is released yet /
+まだリリースされていません」と書いたまま作成された。**
+README の更新が作業ツリーに残ったままコミットされず、そのままマージ・タグまで進んだ。
+
+コードとデプロイは正しく、CSP 実測も済んでいた。**壊れていたのは説明だけ**だが、
+「リリース済みのタグが未リリースだと言っている」状態は、この製品が最も避けたい
+**書いてあることと実態の不一致**そのものである。
+
+再発防止として、リリース手順に次を入れる。
+
+```bash
+# タグを打つ前に必ず実行する
+grep -n "pre-alpha\|Nothing here is released\|まだリリースされていません" README.md README.ja.md
+# 何かヒットしたら、タグを打たない
+```
+
+`git status` が clean であることは「変更を保存した」ことを意味しない。
+**意図した変更が入っているかは、内容で確認する。**
