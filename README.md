@@ -5,8 +5,11 @@
 No uploads. No AI APIs. No accounts.
 Your images never leave your browser.
 
-> **Status: in development (pre-alpha).** Nothing here is released yet.
-> The design is settled and recorded in [`ai_tasks/`](./ai_tasks/); implementation is in progress.
+**[sourceglass.pages.dev](https://sourceglass.pages.dev/)** — open it and drop an image in.
+
+> **Status: v0.1.0.** The metadata layer — EXIF, XMP, and C2PA — is implemented.
+> Pixel-level watermarks are not checked yet; see the roadmap below.
+> Design decisions are recorded in [`ai_tasks/`](./ai_tasks/).
 
 [日本語](./README.ja.md)
 
@@ -66,6 +69,12 @@ We would rather prove this than claim it. Sourceglass enforces it two ways:
 
 Both run in CI. If you do not trust the claim, read
 [`e2e/privacy.spec.ts`](./e2e/privacy.spec.ts) and the CSP in [`public/_headers`](./public/_headers).
+
+You can also check the deployed site yourself, without taking our word for it:
+
+```bash
+curl -sI https://sourceglass.pages.dev/ | grep -i content-security-policy
+```
 
 ---
 
